@@ -212,12 +212,12 @@ function renderScore(findings) {
 
 
   // Middleware: Block fake URLs
+// Middleware
 async function blockFakeURLs(req, res, next) {
   try {
     let { url } = req.query;
     if (!url) return res.status(400).json({ error: "Missing ?url" });
 
-    // Normalize url (strip protocol, trailing slash)
     url = url.replace(/^https?:\/\//, "").replace(/\/$/, "");
 
     const fakeCollection = mongoose.connection.collection("fake");
@@ -227,12 +227,25 @@ async function blockFakeURLs(req, res, next) {
       return res.status(403).json({ error: "❌ This URL is flagged as fake. No analysis allowed." });
     }
 
-    next(); // continue if not fake
+    next();
   } catch (err) {
     console.error("❌ Fake check error:", err);
     res.status(500).json({ error: "Fake URL check failed" });
   }
 }
+
+// Apply to all scan routes
+app.get("/scan/ssl", blockFakeURLs, async (req, res) => { ... });
+app.get("/scan/headers", blockFakeURLs, async (req, res) => { ... });
+app.get("/scan/libs", blockFakeURLs, async (req, res) => { ... });
+app.get("/scan/xss", blockFakeURLs, async (req, res) => { ... });
+app.get("/scan/ports", blockFakeURLs, async (req, res) => { ... });
+app.get("/scan/csrf", blockFakeURLs, async (req, res) => { ... });
+app.get("/scan/sensitive", blockFakeURLs, async (req, res) => { ... });
+
+app.get("/perf/*", blockFakeURLs, async (req, res) => { ... });
+app.get("/seo/*", blockFakeURLs, async (req, res) => { ... });
+
 
 
 // Fetch AI fix from backend
