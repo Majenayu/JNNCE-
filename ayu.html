@@ -502,5 +502,92 @@ function renderSEOResults() {
 }
 
 </script>
+
+<!-- AI Chatbot -->
+<div id="chatbot-container" style="
+    position: fixed; bottom: 20px; right: 20px;
+    display: flex; flex-direction: column; align-items: flex-end;
+    z-index: 9999;">
+  <div id="chat-window" style="
+      width: 300px; height: 0; overflow: hidden;
+      background: white; border-radius: 12px; box-shadow: 0 4px 20px rgba(0,0,0,0.2);
+      transition: height 0.3s ease;">
+    <div style="background:#4B0082;color:white;padding:10px;border-radius:12px 12px 0 0;">
+      AI Assistant
+    </div>
+    <div id="chat-messages" style="height: 200px; overflow-y: auto; padding: 10px; font-size:14px;"></div>
+    <div style="display:flex; padding:10px; border-top:1px solid #ddd;">
+      <input id="chat-input" type="text" placeholder="Ask something..." style="flex:1;padding:8px;border:1px solid #ccc;border-radius:8px;"/>
+      <button id="send-btn" style="margin-left:8px;padding:8px 12px;background:#4B0082;color:white;border:none;border-radius:8px;">Send</button>
+    </div>
+  </div>
+  <button id="chatbot-btn" style="
+      width:60px;height:60px;border-radius:50%;background:#4B0082;color:white;
+      font-size:28px;border:none;cursor:pointer;display:flex;align-items:center;justify-content:center;">
+    💬
+  </button>
+</div>
+<script>
+const chatBtn = document.getElementById("chatbot-btn");
+const chatWindow = document.getElementById("chat-window");
+const sendBtn = document.getElementById("send-btn");
+const chatInput = document.getElementById("chat-input");
+const chatMessages = document.getElementById("chat-messages");
+
+let isOpen = false;
+chatBtn.addEventListener("click", () => {
+  isOpen = !isOpen;
+  chatWindow.style.height = isOpen ? "300px" : "0";
+});
+
+sendBtn.addEventListener("click", async () => {
+  const userText = chatInput.value.trim();
+  if (!userText) return;
+
+  addMessage("You", userText);
+  chatInput.value = "";
+
+  try {
+    const username = localStorage.getItem("username"); // Grab logged-in user
+    const res = await fetch("/ai-chat", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ prompt: userText, username })
+    });
+    const data = await res.json();
+    addMessage("AI", data.reply || "No response");
+  } catch (err) {
+    addMessage("AI", "Error connecting to AI");
+  }
+});
+
+
+window.addEventListener("DOMContentLoaded", async () => {
+  const username = localStorage.getItem("username");
+  if (!username) return;
+
+  try {
+    const res = await fetch(`/ai-history?username=${username}`);
+    const history = await res.json();
+    history.forEach(item => {
+      addMessage("You", item.prompt);
+      addMessage("AI", item.response);
+    });
+  } catch (err) {
+    console.error("Failed to load AI history");
+  }
+});
+
+
+function addMessage(sender, text) {
+  const div = document.createElement("div");
+  div.style.marginBottom = "8px";
+  div.innerHTML = `<strong>${sender}:</strong> ${text}`;
+  chatMessages.appendChild(div);
+  chatMessages.scrollTop = chatMessages.scrollHeight;
+}
+</script>
+
+
 </body>
 </html>
