@@ -27,6 +27,15 @@ const userSchema = new mongoose.Schema({
 });
 const User = mongoose.model("User", userSchema);
 
+app.use((req, res, next) => {
+  res.setHeader(
+    "Content-Security-Policy",
+    "default-src 'self'; style-src 'self' 'unsafe-inline' https://cdn.tailwindcss.com; script-src 'self' 'unsafe-inline' https://cdn.tailwindcss.com;"
+  );
+  next();
+});
+
+
 // ------------------- AUTH ROUTES -------------------
 app.post("/register", async (req, res) => {
   const { name, email, password } = req.body;
