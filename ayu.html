@@ -247,8 +247,10 @@ async function runAll() {
   await Promise.allSettled([runAllScans(), runPerfScans(), runSEOScans()]);
   generateFinalAI();
   await saveHistory();
+  await saveFakeIfNeeded(); // ✅ added here
   showLoader(false);
 }
+
 
 async function saveHistory() {
   const email = localStorage.getItem("email");
