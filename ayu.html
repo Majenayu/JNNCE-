@@ -791,7 +791,7 @@ function addMessage(sender, text) {
 })();
 
 
-  // Load fake URLs from backend
+// Load fake URLs from backend
 async function loadFakeHistory() {
   try {
     const res = await fetch("/fake-history");
@@ -810,12 +810,20 @@ async function loadFakeHistory() {
       item.className = "p-2 bg-gray-800 rounded hover:bg-gray-700 cursor-pointer";
       const dateStr = new Date(entry.timestamp).toLocaleString();
       item.textContent = `${entry.url || "Unknown URL"} – ${entry.totalIssues} issues – ${dateStr}`;
+
+      // ✅ make clickable like history sidebar
+      item.onclick = () => {
+        loadHistoryEntry(entry);   // reuse existing loader
+        toggleFakeSidebar();       // close fake sidebar
+      };
+
       list.appendChild(item);
     });
   } catch (err) {
     console.error("❌ Failed to load fake history:", err);
   }
 }
+
 
 // Toggle Fake Sidebar
 function toggleFakeSidebar() {
