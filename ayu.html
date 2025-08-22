@@ -210,6 +210,31 @@ function renderScore(findings) {
   return `<div class="score-box">Score: ${score}% | Status: ${status}</div>`;
 }
 
+
+  // Middleware: Block fake URLs
+async function blockFakeURLs(req, res, next) {
+  try {
+    let { url } = req.query;
+    if (!url) return res.status(400).json({ error: "Missing ?url" });
+
+    // Normalize url (strip protocol, trailing slash)
+    url = url.replace(/^https?:\/\//, "").replace(/\/$/, "");
+
+    const fakeCollection = mongoose.connection.collection("fake");
+    const existing = await fakeCollection.findOne({ url });
+
+    if (existing) {
+      return res.status(403).json({ error: "❌ This URL is flagged as fake. No analysis allowed." });
+    }
+
+    next(); // continue if not fake
+  } catch (err) {
+    console.error("❌ Fake check error:", err);
+    res.status(500).json({ error: "Fake URL check failed" });
+  }
+}
+
+
 // Fetch AI fix from backend
 async function getAIFix(issue) {
   try {
