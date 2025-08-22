@@ -111,6 +111,27 @@
   ☰
 </button>
 
+  <!-- Fake URLs Sidebar -->
+<div id="fakeSidebar" class="fixed top-0 right-0 h-full w-64 bg-gray-900 text-white transform translate-x-full transition-transform duration-300 z-50">
+  <div class="p-4 border-b border-gray-700 flex justify-between items-center">
+    <h2 class="text-lg font-bold">Fake URLs</h2>
+    <button onclick="toggleFakeSidebar()" 
+      class="absolute top-4 left-4 z-[9999] bg-gray-800 text-white px-3 py-2 rounded-lg shadow hover:bg-gray-700">
+      ✖
+    </button>
+  </div>
+  <div id="fakeList" class="overflow-y-auto h-[calc(100%-60px)] p-4 space-y-3 text-sm">
+    <!-- Fake urls load here -->
+  </div>
+</div>
+
+<!-- Sidebar Toggle Button -->
+<button id="fakeToggleBtn" onclick="toggleFakeSidebar()" 
+  class="fixed top-4 right-4 z-[9999] bg-gray-800 text-white px-3 py-2 rounded-lg shadow hover:bg-gray-700">
+  🚫
+</button>
+
+  
 <div id="mainContent" class="transition-all duration-300 ml-0"></div>
 
   <div id="loader" style="display:none;">
