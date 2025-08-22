@@ -3,18 +3,38 @@
 <head>
   <meta charset="UTF-8">
   <title>NSS Login/Register</title>
-  <!-- ✅ Use precompiled Tailwind CSS -->
- <script src="https://cdn.tailwindcss.com"></script>
-
   <style>
-    /* Keep your custom styles below */
+    /* === Reset & Base === */
+    * { margin: 0; padding: 0; box-sizing: border-box; }
+    body {
+      min-height: 100vh;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      font-family: Arial, sans-serif;
+      background: linear-gradient(135deg, #4338ca, #7e22ce, #db2777);
+      background-size: 200% 200%;
+      animation: gradientMove 15s ease infinite;
+      color: #fff;
+      overflow: hidden;
+    }
+    @keyframes gradientMove {
+      0% { background-position: 0 0; }
+      50% { background-position: 100% 100%; }
+      100% { background-position: 0 0; }
+    }
+
     /* Floating Circles */
     @keyframes float {
       0% { transform: translateY(0) translateX(0); }
       50% { transform: translateY(-20px) translateX(10px); }
       100% { transform: translateY(0) translateX(0); }
     }
-    .floating { animation: float 8s ease-in-out infinite; }
+    .floating {
+      position: absolute;
+      border-radius: 50%;
+      animation: float 8s ease-in-out infinite;
+    }
 
     /* Particles */
     .particle {
@@ -30,17 +50,32 @@
       to { transform: translateY(-800px); opacity: 0; }
     }
 
-    /* Glass effect */
+    /* Cobweb */
+    .cobweb {
+      position: absolute;
+      width: 180px;
+      height: 180px;
+      opacity: 0.35;
+      pointer-events: none;
+      transition: transform 0.3s ease-out;
+    }
+    .cobweb svg { width: 100%; height: 100%; }
+    .cobweb.tl { top: 0; left: 0; }
+    .cobweb.tr { top: 0; right: 0; }
+    .cobweb.bl { bottom: 0; left: 0; }
+    .cobweb.br { bottom: 0; right: 0; }
+
+    /* Glass container */
     .glass {
       background: rgba(255, 255, 255, 0.15);
       backdrop-filter: blur(12px);
       border: 1px solid rgba(255, 255, 255, 0.2);
+      border-radius: 20px;
+      padding: 30px;
+      width: 360px;
+      text-align: center;
       position: relative;
       z-index: 10;
-    }
-
-    /* Glowing Aura */
-    .glow-box {
       box-shadow: 0 0 30px rgba(99,102,241,0.6), 0 0 60px rgba(236,72,153,0.4);
       animation: pulseGlow 4s ease-in-out infinite;
     }
@@ -49,9 +84,46 @@
       50% { box-shadow: 0 0 50px rgba(139,92,246,0.8), 0 0 100px rgba(236,72,153,0.6); }
     }
 
+    h2 {
+      font-size: 28px;
+      font-weight: bold;
+      margin-bottom: 20px;
+      color: #fff;
+      text-shadow: 1px 1px 5px rgba(0,0,0,0.3);
+    }
+
+    /* Inputs */
+    input {
+      width: 100%;
+      padding: 12px 14px;
+      border-radius: 8px;
+      border: 1px solid rgba(255,255,255,0.3);
+      background: rgba(255,255,255,0.2);
+      color: #fff;
+      margin-bottom: 12px;
+      font-size: 14px;
+      outline: none;
+    }
+    input::placeholder { color: #e2e2e2; }
+    input:focus { border-color: #ec4899; }
+
     /* Buttons */
-    .btn-shine { position: relative; overflow: hidden; }
-    .btn-shine::before {
+    button {
+      width: 100%;
+      padding: 12px;
+      border-radius: 8px;
+      border: none;
+      background: linear-gradient(to right, #ec4899, #7e22ce);
+      color: #fff;
+      font-size: 16px;
+      font-weight: 600;
+      cursor: pointer;
+      position: relative;
+      overflow: hidden;
+      transition: transform 0.3s;
+    }
+    button:hover { transform: scale(1.05); }
+    button::before {
       content: "";
       position: absolute;
       top: 0;
@@ -61,9 +133,29 @@
       background: linear-gradient(120deg, transparent, rgba(255,255,255,0.5), transparent);
       transition: all 0.6s;
     }
-    .btn-shine:hover::before { left: 100%; }
+    button:hover::before { left: 100%; }
 
-    /* Loader spinner */
+    .switch-text {
+      font-size: 14px;
+      color: #e0e0e0;
+      margin-top: 10px;
+    }
+    .switch-text span {
+      color: #fbcfe8;
+      cursor: pointer;
+      text-decoration: underline;
+    }
+
+    /* Loader */
+    #loader {
+      display: none;
+      position: fixed;
+      inset: 0;
+      background: rgba(0,0,0,0.6);
+      z-index: 100;
+      justify-content: center;
+      align-items: center;
+    }
     .spinner {
       border: 4px solid rgba(255, 255, 255, 0.3);
       border-top: 4px solid white;
@@ -74,24 +166,13 @@
     }
     @keyframes spin { 0%{transform:rotate(0)}100%{transform:rotate(360deg)} }
 
-    /* Cobwebs */
-    .cobweb {
-      position: absolute;
-      width: 180px;
-      height: 180px;
-      opacity: 0.35;
-      transition: transform 0.3s ease-out;
-      pointer-events: none;
-    }
-    .cobweb svg { width: 100%; height: 100%; }
-    .cobweb.tl { top: 0; left: 0; }
-    .cobweb.tr { top: 0; right: 0; }
-    .cobweb.bl { bottom: 0; left: 0; }
-    .cobweb.br { bottom: 0; right: 0; }
+    /* Layout: Floating circles */
+    .circle1 { top: 40px; left: 80px; width: 160px; height: 160px; background: rgba(236,72,153,0.3); }
+    .circle2 { bottom: 100px; right: 160px; width: 130px; height: 130px; background: rgba(99,102,241,0.3); }
+    .circle3 { top: 50%; right: 40px; width: 100px; height: 100px; background: rgba(168,85,247,0.3); }
   </style>
 </head>
-<body class="min-h-screen flex items-center justify-center bg-gradient-to-br from-indigo-700 via-purple-700 to-pink-600 relative overflow-hidden">
-
+<body>
   <!-- Cobwebs -->
   <div class="cobweb tl">
     <svg viewBox="0 0 100 100" stroke="white" fill="none" stroke-width="0.5">
@@ -143,147 +224,130 @@
   </div>
 
   <!-- Floating Circles -->
-  <div class="absolute top-10 left-20 w-40 h-40 bg-pink-400/20 rounded-full floating"></div>
-  <div class="absolute bottom-20 right-40 w-32 h-32 bg-indigo-300/30 rounded-full floating"></div>
-  <div class="absolute top-1/2 right-10 w-24 h-24 bg-purple-200/40 rounded-full floating"></div>
+  <div class="floating circle1"></div>
+  <div class="floating circle2"></div>
+  <div class="floating circle3"></div>
 
   <!-- Particles -->
   <div id="particles"></div>
 
-  <!-- Form with Glow -->
-  <div class="glass glow-box rounded-2xl p-8 w-[360px] text-center">
-    <h2 id="form-title" class="text-3xl font-extrabold mb-6 text-white drop-shadow">Login</h2>
+  <!-- Form -->
+  <div class="glass">
+    <h2 id="form-title">Login</h2>
 
-    <!-- Login Form (IDs unchanged) -->
-    <form id="loginForm" class="space-y-4 active">
-      <input type="text" id="loginName" placeholder="Name" required 
-        class="w-full px-4 py-2 rounded-lg border border-white/20 bg-white/20 text-white placeholder-gray-200 focus:ring-2 focus:ring-pink-400 outline-none" />
-      <input type="password" id="loginPassword" placeholder="Password" required 
-        class="w-full px-4 py-2 rounded-lg border border-white/20 bg-white/20 text-white placeholder-gray-200 focus:ring-2 focus:ring-indigo-400 outline-none" />
-      <button type="submit" class="w-full py-2 rounded-lg bg-gradient-to-r from-pink-500 to-purple-600 text-white font-semibold btn-shine transition-transform hover:scale-105">Login</button>
-      <div class="text-sm text-gray-200">Don’t have an account? 
-        <span onclick="toggleForm('register')" class="text-pink-300 cursor-pointer hover:underline">Register</span>
+    <form id="loginForm">
+      <input type="text" id="loginName" placeholder="Name" required />
+      <input type="password" id="loginPassword" placeholder="Password" required />
+      <button type="submit">Login</button>
+      <div class="switch-text">
+        Don’t have an account? <span onclick="toggleForm('register')">Register</span>
       </div>
     </form>
 
-    <!-- Register Form (IDs unchanged) -->
-    <form id="registerForm" class="space-y-4 hidden">
-      <input type="text" id="regName" placeholder="Name" required 
-        class="w-full px-4 py-2 rounded-lg border border-white/20 bg-white/20 text-white placeholder-gray-200 focus:ring-2 focus:ring-pink-400 outline-none" />
-      <input type="email" id="regEmail" placeholder="Email" required 
-        class="w-full px-4 py-2 rounded-lg border border-white/20 bg-white/20 text-white placeholder-gray-200 focus:ring-2 focus:ring-indigo-400 outline-none" />
-      <input type="password" id="regPassword" placeholder="Password" required 
-        class="w-full px-4 py-2 rounded-lg border border-white/20 bg-white/20 text-white placeholder-gray-200 focus:ring-2 focus:ring-purple-400 outline-none" />
-      <button type="submit" class="w-full py-2 rounded-lg bg-gradient-to-r from-indigo-500 to-purple-700 text-white font-semibold btn-shine transition-transform hover:scale-105">Register</button>
-      <div class="text-sm text-gray-200">Already have an account? 
-        <span onclick="toggleForm('login')" class="text-indigo-300 cursor-pointer hover:underline">Login</span>
+    <form id="registerForm" style="display:none;">
+      <input type="text" id="regName" placeholder="Name" required />
+      <input type="email" id="regEmail" placeholder="Email" required />
+      <input type="password" id="regPassword" placeholder="Password" required />
+      <button type="submit">Register</button>
+      <div class="switch-text">
+        Already have an account? <span onclick="toggleForm('login')">Login</span>
       </div>
     </form>
   </div>
 
-  <!-- Loader Overlay (used by JS below) -->
-  <div class="hidden fixed inset-0 bg-black/60 flex items-center justify-center z-50" id="loader">
+  <!-- Loader -->
+  <div id="loader">
     <div class="spinner"></div>
   </div>
 
-<script>
-  function toggleForm(type) {
-    document.getElementById("loginForm").classList.add("hidden");
-    document.getElementById("registerForm").classList.add("hidden");
-    if (type === "login") {
-      document.getElementById("loginForm").classList.remove("hidden");
-      document.getElementById("form-title").innerText = "Login";
-    } else {
-      document.getElementById("registerForm").classList.remove("hidden");
-      document.getElementById("form-title").innerText = "Register";
+  <script>
+    function toggleForm(type) {
+      document.getElementById("loginForm").style.display = "none";
+      document.getElementById("registerForm").style.display = "none";
+      document.getElementById("form-title").innerText = type === "login" ? "Login" : "Register";
+      document.getElementById(type + "Form").style.display = "block";
     }
-  }
 
-  const loader = document.getElementById("loader");
+    const loader = document.getElementById("loader");
 
-  /* ---------------------------
-     Restore loader usage + API calls
-  ----------------------------*/
+    // Register
+    document.getElementById("registerForm").addEventListener("submit", async (e) => {
+      e.preventDefault();
+      loader.style.display = "flex";
+      try {
+        const name = document.getElementById("regName").value;
+        const email = document.getElementById("regEmail").value;
+        const password = document.getElementById("regPassword").value;
 
-  // Register
-  document.getElementById("registerForm").addEventListener("submit", async (e) => {
-    e.preventDefault();
-    loader.classList.remove("hidden");
-    try {
-      const name = document.getElementById("regName").value;
-      const email = document.getElementById("regEmail").value;
-      const password = document.getElementById("regPassword").value;
+        const res = await fetch("/register", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ name, email, password })
+        });
 
-      const res = await fetch("/register", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ name, email, password })
-      });
-
-      const data = await res.json();
-      alert(data.message || (res.ok ? "Registered!" : "Registration failed"));
-      if (res.ok) toggleForm("login");
-    } catch (err) {
-      alert("Network error during registration");
-    } finally {
-      loader.classList.add("hidden");
-    }
-  });
-
-  // Login
-  document.getElementById("loginForm").addEventListener("submit", async (e) => {
-    e.preventDefault();
-    loader.classList.remove("hidden");
-    try {
-      const name = document.getElementById("loginName").value;
-      const password = document.getElementById("loginPassword").value;
-
-      const res = await fetch("/login", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ name, password })
-      });
-
-      const data = await res.json();
-      if (res.ok) {
-        localStorage.setItem("username", data.user.name);
-        localStorage.setItem("email", data.user.email);
-        localStorage.setItem("role", "User");
-        window.location.href = "ayu.html";
-      } else {
-        alert(data.message || "Login failed");
+        const data = await res.json();
+        alert(data.message || (res.ok ? "Registered!" : "Registration failed"));
+        if (res.ok) toggleForm("login");
+      } catch {
+        alert("Network error during registration");
+      } finally {
+        loader.style.display = "none";
       }
-    } catch (err) {
-      alert("Network error during login");
-    } finally {
-      loader.classList.add("hidden");
-    }
-  });
-
-  // Particles
-  const particlesContainer = document.getElementById("particles");
-  for (let i = 0; i < 40; i++) {
-    const p = document.createElement("div");
-    p.className = "particle";
-    p.style.left = Math.random() * window.innerWidth + "px";
-    p.style.top = Math.random() * window.innerHeight + "px";
-    p.style.animationDuration = 10 + Math.random() * 20 + "s";
-    particlesContainer.appendChild(p);
-  }
-
-  // Cobweb interactive movement
-  const cobwebs = document.querySelectorAll(".cobweb");
-  document.addEventListener("mousemove", (e) => {
-    const x = (e.clientX / window.innerWidth - 0.5) * 30;
-    const y = (e.clientY / window.innerHeight - 0.5) * 30;
-    cobwebs.forEach((cob, i) => {
-      cob.style.transform = `translate(${x * (i % 2 === 0 ? 1 : -1)}px, ${y * (i < 2 ? 1 : -1)}px) scale(1.05)`;
     });
-  });
-  document.addEventListener("mouseleave", () => {
-    cobwebs.forEach((cob) => (cob.style.transform = "translate(0,0) scale(1)"));
-  });
-</script>
 
+    // Login
+    document.getElementById("loginForm").addEventListener("submit", async (e) => {
+      e.preventDefault();
+      loader.style.display = "flex";
+      try {
+        const name = document.getElementById("loginName").value;
+        const password = document.getElementById("loginPassword").value;
+
+        const res = await fetch("/login", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ name, password })
+        });
+
+        const data = await res.json();
+        if (res.ok) {
+          localStorage.setItem("username", data.user.name);
+          localStorage.setItem("email", data.user.email);
+          localStorage.setItem("role", "User");
+          window.location.href = "ayu.html";
+        } else {
+          alert(data.message || "Login failed");
+        }
+      } catch {
+        alert("Network error during login");
+      } finally {
+        loader.style.display = "none";
+      }
+    });
+
+    // Particles
+    const particlesContainer = document.getElementById("particles");
+    for (let i = 0; i < 40; i++) {
+      const p = document.createElement("div");
+      p.className = "particle";
+      p.style.left = Math.random() * window.innerWidth + "px";
+      p.style.top = Math.random() * window.innerHeight + "px";
+      p.style.animationDuration = 10 + Math.random() * 20 + "s";
+      particlesContainer.appendChild(p);
+    }
+
+    // Cobweb move
+    const cobwebs = document.querySelectorAll(".cobweb");
+    document.addEventListener("mousemove", (e) => {
+      const x = (e.clientX / window.innerWidth - 0.5) * 30;
+      const y = (e.clientY / window.innerHeight - 0.5) * 30;
+      cobwebs.forEach((cob, i) => {
+        cob.style.transform = `translate(${x * (i % 2 === 0 ? 1 : -1)}px, ${y * (i < 2 ? 1 : -1)}px) scale(1.05)`;
+      });
+    });
+    document.addEventListener("mouseleave", () => {
+      cobwebs.forEach((cob) => (cob.style.transform = "translate(0,0) scale(1)"));
+    });
+  </script>
 </body>
 </html>
