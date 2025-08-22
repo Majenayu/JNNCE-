@@ -211,7 +211,7 @@
       const email = document.getElementById("regEmail").value;
       const password = document.getElementById("regPassword").value;
 
-      const res = await fetch("http://localhost:3000/register", {
+      const res = await fetch("/register", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ name, email, password })
@@ -235,7 +235,7 @@
       const name = document.getElementById("loginName").value;
       const password = document.getElementById("loginPassword").value;
 
-      const res = await fetch("http://localhost:3000/login", {
+      const res = await fetch("/login", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ name, password })
