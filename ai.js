@@ -1,75 +1,75 @@
 document.addEventListener("DOMContentLoaded", () => {
-  const chatbotBtn = document.getElementById("chatbot-btn");
+  const chatBtn = document.getElementById("chatbot-btn");
   const chatWindow = document.getElementById("chat-window");
-  const chatMessages = document.getElementById("chat-messages");
-  const chatInput = document.getElementById("chat-input");
   const sendBtn = document.getElementById("send-btn");
-  const email = localStorage.getItem("email");
+  const chatInput = document.getElementById("chat-input");
+  const chatMessages = document.getElementById("chat-messages");
 
-  if (!email) {
-    console.warn("User not logged in, chatbot disabled.");
+  let isOpen = false;
+  const email = localStorage.getItem("email");
+  const username = localStorage.getItem("username");
+  const userIdentifier = email || username; // Prefer email if available
+
+  if (!userIdentifier) {
+    console.warn("No logged-in user found. AI chat disabled.");
     return;
   }
 
-  let isOpen = false;
-
-  // Toggle chatbot visibility
-  chatbotBtn.addEventListener("click", () => {
+  // --- Toggle chatbot visibility ---
+  chatBtn.addEventListener("click", () => {
     isOpen = !isOpen;
-    chatWindow.style.height = isOpen ? "320px" : "0";
+    chatWindow.style.height = isOpen ? "360px" : "0";
   });
 
-  // Add message to chat
-  function addMessage(sender, text) {
-    const msg = document.createElement("div");
-    msg.style.marginBottom = "8px";
-    msg.style.padding = "8px";
-    msg.style.borderRadius = "8px";
-    msg.style.background = sender === "user" ? "#E0E0E0" : "#F3E8FF";
-    msg.textContent = `${sender === "user" ? "You" : "AI"}: ${text}`;
-    chatMessages.appendChild(msg);
-    chatMessages.scrollTop = chatMessages.scrollHeight;
-  }
-
-  // Load chat history
+  // --- Load previous chat history ---
   async function loadHistory() {
     try {
-      const res = await fetch(`/ai-history?email=${encodeURIComponent(email)}`);
+      const res = await fetch(`/ai-history?email=${encodeURIComponent(userIdentifier)}`);
       const history = await res.json();
+
       chatMessages.innerHTML = "";
       history.forEach(item => {
-        addMessage("user", item.prompt);
-        addMessage("ai", item.response);
+        addMessage("You", item.prompt);
+        addMessage("AI", item.response);
       });
     } catch (err) {
-      console.error("Failed to load chat history:", err);
+      console.error("Failed to load AI history:", err);
     }
   }
 
-  // Send a new message
+  // --- Add a message to the chat UI ---
+  function addMessage(sender, text) {
+    const div = document.createElement("div");
+    div.style.marginBottom = "8px";
+    div.innerHTML = `<strong>${sender}:</strong> ${text}`;
+    chatMessages.appendChild(div);
+    chatMessages.scrollTop = chatMessages.scrollHeight;
+  }
+
+  // --- Send a new message to AI ---
   async function sendMessage() {
     const prompt = chatInput.value.trim();
     if (!prompt) return;
 
-    addMessage("user", prompt);
+    addMessage("You", prompt);
     chatInput.value = "";
 
     try {
       const res = await fetch("/chat-ai", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ email, prompt })
+        body: JSON.stringify({ email: userIdentifier, prompt })
       });
 
       const data = await res.json();
-      addMessage("ai", data.reply || "No response received.");
+      addMessage("AI", data.reply || "No response from AI.");
     } catch (err) {
-      addMessage("ai", "Error: Unable to get response.");
+      addMessage("AI", "Error: Could not connect to AI.");
       console.error(err);
     }
   }
 
-  // Handle send button and Enter key
+  // --- Event listeners ---
   sendBtn.addEventListener("click", sendMessage);
   chatInput.addEventListener("keypress", (e) => {
     if (e.key === "Enter") {
@@ -78,5 +78,6 @@ document.addEventListener("DOMContentLoaded", () => {
     }
   });
 
+  // Load history on page load
   loadHistory();
 });
