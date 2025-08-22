@@ -1,774 +1,683 @@
-<!DOCTYPE html>
-<html lang="en">
-<head>
-  <meta charset="UTF-8">
-  <title>Website Audit Tool</title>
-  <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
-  <style>
-    /* CSS remains unchanged */
-    body {margin:0;font-family:"Segoe UI",Arial,sans-serif;background:linear-gradient(to bottom,#1a1f4d,#4b0082);color:white;overflow-x:hidden;}
-    h1,h2{text-align:center;}
-    input,button{padding:10px 15px;border-radius:12px;border:none;margin:8px;font-size:15px;}
-    input{width:350px;outline:none;background:rgba(255,255,255,0.12);color:#fff;backdrop-filter:blur(12px);border:1px solid rgba(255,255,255,0.18);}
-    input::placeholder{color:rgba(255,255,255,0.75);}
-    button{
-      background:rgba(255,255,255,0.12);
-      color:white;
-      backdrop-filter:blur(14px);
-      cursor:pointer;
-      transition:transform .2s ease, box-shadow .2s ease, background .2s ease, border-color .2s ease;
-      border:1px solid rgba(255,255,255,0.18);
-      box-shadow:0 6px 18px rgba(0,0,0,0.25), inset 0 1px 0 rgba(255,255,255,0.2);
-    }
-    button:hover{
-      background:rgba(255,255,255,0.28);
-      transform:translateY(-2px) scale(1.04);
-      box-shadow:0 10px 26px rgba(0,0,0,0.35), 0 0 20px rgba(180,140,255,0.35);
-      border-color:rgba(255,255,255,0.35);
-    }
-    .section{
-      margin:25px auto;padding:20px;width:90%;max-width:900px;border-radius:18px;
-      background:rgba(255,255,255,0.10);
-      backdrop-filter:blur(14px);
-      box-shadow:0 12px 32px rgba(0,0,0,0.35), inset 0 0 0 1px rgba(255,255,255,0.14);
-      border:1px solid rgba(255,255,255,0.16);
-    }
-    .ok{color:#7CFC00;}.bad{color:#FF4C4C;}.warn{color:#FFA500;}
-    .score-box{font-weight:bold;margin:10px 0;}
-    #loader{position:fixed;top:0;left:0;width:100%;height:100%;display:flex;align-items:center;justify-content:center;background:rgba(0,0,0,0.65);z-index:1000;flex-direction:column;color:white;font-size:18px;backdrop-filter:blur(6px);}
-    .spinner{border:5px solid rgba(255,255,255,0.2);border-top:5px solid #00ffff;border-radius:50%;width:70px;height:70px;animation:spin 1s linear infinite;margin-bottom:15px;box-shadow:0 0 18px rgba(0,255,255,0.35);}
-    @keyframes spin{100%{transform:rotate(360deg);}}
-    #cobweb{position:fixed;top:0;left:0;width:100%;height:100%;z-index:-1;}
-    .container{display:flex;gap:20px;align-items:flex-start;padding:20px;}
-    .column{flex:1;}
-    .ai-fix{font-size:13px;color:#00ffff;margin-left:10px;}
-    .fixed{position:fixed;}
-    .absolute{position:absolute;}
-    .top-0{top:0}.left-0{left:0}.right-4{right:1rem}.left-4{left:1rem}.top-4{top:1rem}
-    .h-full{height:100%}.w-64{width:16rem}
-    .bg-gray-900{background:rgba(15,15,40,0.68);backdrop-filter:blur(16px);border-right:1px solid rgba(255,255,255,0.12)}
-    .bg-gray-800{background:rgba(255,255,255,0.12)}
-    .text-white{color:#fff}
-    .transform{}
-    .-translate-x-full{transform:translateX(-100%)}
-    .transition-transform{transition:transform .3s ease}
-    .duration-300{}
-    .z-50{z-index:50}
-    .z-\[9999\]{z-index:9999}
-    .p-4{padding:1rem}
-    .p-2{padding:.5rem}
-    .px-3{padding-left:.75rem;padding-right:.75rem}
-    .py-2{padding-top:.5rem;padding-bottom:.5rem}
-    .border-b{border-bottom:1px solid rgba(255,255,255,0.14)}
-    .border-gray-700{border-color:rgba(255,255,255,0.14)}
-    .flex{display:flex}.justify-between{justify-content:space-between}.items-center{align-items:center}
-    .rounded-lg{border-radius:0.75rem}
-    .rounded{border-radius:.5rem}
-    .shadow{box-shadow:0 10px 28px rgba(0,0,0,0.35)}
-    .hover\:bg-gray-700:hover{background:rgba(255,255,255,0.22)}
-    .overflow-y-auto{overflow-y:auto}
-    .h-\[calc\(100\%-60px\)\]{height:calc(100% - 60px)}
-    .space-y-3 > * + *{margin-top:0.75rem}
-    .text-sm{font-size:.875rem}
-    .text-lg{font-size:1.125rem}
-    .font-bold{font-weight:700}
-    .cursor-pointer{cursor:pointer}
-    .text-gray-400{color:rgba(255,255,255,0.6)}
-    .hover\:underline:hover{text-decoration:underline}
-    .transition-all{transition:all .3s ease}
-    .ml-64{margin-left:16rem}
-    .ml-0{margin-left:0}
-    #urlInput{
-      display:block;
-      width:min(600px,90%);
-      margin:10px auto 6px;
-      background:#ffffff !important;
-      color:#111 !important;
-      border:1px solid rgba(0,0,0,0.15) !important;
-      box-shadow:0 6px 18px rgba(0,0,0,0.12);
-    }
-    #urlInput::placeholder{color:#666 !important;}
-  </style>
-</head>
-<body>
-  <!-- Sidebar -->
-<div id="sidebar" class="fixed top-0 left-0 h-full w-64 bg-gray-900 text-white transform -translate-x-full transition-transform duration-300 z-50">
-  <div class="p-4 border-b border-gray-700 flex justify-between items-center">
-    <h2 class="text-lg font-bold">History</h2>
-    <button onclick="toggleSidebar()" 
-      class="absolute top-4 right-4 z-[9999] bg-gray-800 text-white px-3 py-2 rounded-lg shadow hover:bg-gray-700">
-      ✖
-    </button>
-  </div>
-  <div id="historyList" class="overflow-y-auto h-[calc(100%-60px)] p-4 space-y-3 text-sm">
-    <!-- History items will load here -->
-  </div>
-</div>
+const express = require("express");
+const mongoose = require("mongoose");
+const cors = require("cors");
+const path = require("path");
+const fetch = (...args) => import("node-fetch").then(({ default: fetch }) => fetch(...args));
+const cheerio = require("cheerio");
+const http = require("http");
+const https = require("https");
 
-<!-- Sidebar Toggle Button -->
-<button id="menuToggleBtn" onclick="toggleSidebar()" 
-  class="fixed top-4 left-4 z-[9999] bg-gray-800 text-white px-3 py-2 rounded-lg shadow hover:bg-gray-700">
-  ☰
-</button>
+const app = express();
+app.use(express.json());
+app.use(cors());
 
-<div id="mainContent" class="transition-all duration-300 ml-0"></div>
+// Serve static files
+app.use(express.static(path.join(__dirname)));
 
-  <div id="loader" style="display:none;">
-    <div class="spinner"></div>Scanning in progress... Please wait.
-  </div>
-  <canvas id="cobweb"></canvas>
+// MongoDB Connection
+mongoose.connect("mongodb+srv://nss:nss@nss.otjxidx.mongodb.net/?retryWrites=true&w=majority&appName=nss")
+  .then(() => console.log("✅ MongoDB connected"))
+  .catch(err => console.error("❌ MongoDB error:", err));
 
-  <h1>Website Audit Tool</h1>
-  <div style="text-align:center;">
-    <input id="urlInput" placeholder="Enter website URL (example.com or https://example.com)" />
-    <button onclick="runAll()">🚀 Run All Scans</button>
-    <button onclick="generateReport()">📄 Security Report</button>
-    <button onclick="generatePerformanceReport()">📄 Performance Report</button>
-    <button onclick="generateSEOReport()">📄 SEO Report</button>
-  </div>
+// User Schema
+const userSchema = new mongoose.Schema({
+  name: String,
+  email: { type: String, unique: true },
+  password: String
+});
+const User = mongoose.model("User", userSchema);
 
-  <div class="container">
-    <!-- Security -->
-    <div class="column">
-      <h2>🔐 Security</h2>
-      <div id="sslResults" class="section"></div>
-      <div id="headerResults" class="section"></div>
-      <div id="libsResults" class="section"></div>
-      <div id="xssResults" class="section"></div>
-      <div id="portsResults" class="section"></div>
-      <div id="csrfResults" class="section"></div>
-      <div id="sensitiveResults" class="section"></div>
-      <div id="charts" class="section"><h2>📊 Security Overview</h2><canvas id="scoreChart"></canvas></div>
-      <div id="aiSecurity" class="section"><h2>🤖 AI Feedback (Security)</h2><p>⚡ Awaiting...</p></div>
-    </div>
+app.use((req, res, next) => {
+  res.setHeader(
+    "Content-Security-Policy",
+    "default-src 'self'; style-src 'self' 'unsafe-inline' https://cdn.tailwindcss.com; script-src 'self' 'unsafe-inline' https://cdn.tailwindcss.com;"
+  );
+  next();
+});
 
-    <!-- Performance -->
-    <div class="column">
-      <h2>⚡ Performance</h2>
-      <div id="pageloadResults" class="section"></div>
-      <div id="serverTimeResults" class="section"></div>
-      <div id="imageResults" class="section"></div>
-      <div id="jsCssResults" class="section"></div>
-      <div id="resourceResults" class="section"></div>
-      <div id="perfCharts" class="section"><h2>📊 Performance Overview</h2><canvas id="perfChart"></canvas></div>
-      <div id="aiPerf" class="section"><h2>🤖 AI Feedback (Performance)</h2><p>⚡ Awaiting...</p></div>
-    </div>
-
-    <!-- SEO -->
-    <div class="column">
-      <h2>🌐 SEO</h2>
-      <div id="metaResults" class="section"></div>
-      <div id="keywordResults" class="section"></div>
-      <div id="headingResults" class="section"></div>
-      <div id="urlResults" class="section"></div>
-      <div id="mobileResults" class="section"></div>
-      <div id="brokenResults" class="section"></div>
-      <div id="seoImageResults" class="section"></div>
-      <div id="sitemapResults" class="section"></div>
-      <div id="backlinkResults" class="section"></div>
-      <div id="crawlResults" class="section"></div>
-      <div id="seoCharts" class="section"><h2>📊 SEO Overview</h2><canvas id="seoChart"></canvas></div>
-      <div id="aiSEO" class="section"><h2>🤖 AI Feedback (SEO)</h2><p>⚡ Awaiting...</p></div>
-    </div>
-  </div>
-
-  <div id="aiFinal" class="section"><h2>🤖 Overall AI Feedback</h2><p>⚡ Awaiting scans...</p></div>
-
-<script>
-let scanResults = {}, perfResults = {}, seoResults = {};
-let chartInstance, perfChartInstance, seoChartInstance;
-
-function showLoader(show = true) {
-  document.getElementById("loader").style.display = show ? "flex" : "none";
-}
-
-function renderScore(findings) {
-  let sev = (findings?.length || 0) * 10;
-  let score = Math.max(0, 100 - sev);
-  let status = score >= 80 ? `<span class='ok'>🟢 Good</span>` : score >= 50 ? `<span class='warn'>🟡 Fair</span>` : `<span class='bad'>🔴 Poor</span>`;
-  return `<div class="score-box">Score: ${score}% | Status: ${status}</div>`;
-}
-
-// Fetch AI fix from backend
-async function getAIFix(issue) {
+// AUTH ROUTES
+app.post("/register", async (req, res) => {
+  const { name, email, password } = req.body;
   try {
-    const response = await fetch(`/ai-fix?issue=${encodeURIComponent(issue)}`);
-    if (!response.ok) {
-      console.error(`AI fix fetch failed: Status ${response.status}, ${await response.text()}`);
-      return `<span class="ai-fix">💡 Failed to fetch AI suggestion (Status ${response.status})</span>`;
-    }
+    const exists = await User.findOne({ email });
+    if (exists) return res.status(400).json({ message: "Email already registered" });
+    const user = new User({ name, email, password });
+    await user.save();
+    res.json({ message: "Registration successful" });
+  } catch (err) {
+    console.error("Register error:", err);
+    res.status(500).json({ message: "Error registering user" });
+  }
+});
+
+app.post("/login", async (req, res) => {
+  const { name, password } = req.body;
+  try {
+    const user = await User.findOne({ name, password });
+    if (!user) return res.status(401).json({ message: "Invalid credentials" });
+    res.json({ message: "Login successful", user, redirect: "/ayu.html" });
+  } catch (err) {
+    console.error("Login error:", err);
+    res.status(500).json({ message: "Error logging in" });
+  }
+});
+
+// Default routes
+app.get("/", (req, res) => res.sendFile(path.join(__dirname, "index.html")));
+app.get("/ayu.html", (req, res) => res.sendFile(path.join(__dirname, "ayu.html")));
+
+// SECURITY SCANNER ROUTES (unchanged)
+app.get("/scan/ssl", async (req, res) => {
+  let { url } = req.query;
+  if (!url) return res.status(400).json({ error: "Missing ?url parameter" });
+  url = url.replace(/^https?:\/\//, "").replace(/\/$/, "");
+
+  async function poll() {
+    const response = await fetch(`https://api.ssllabs.com/api/v3/analyze?host=${encodeURIComponent(url)}&all=done`);
     const data = await response.json();
-    if (!data.fix || data.fix.includes("No AI suggestion") || data.fix.includes("AI service unavailable")) {
-      console.warn(`AI fix response for "${issue}": ${data.fix}`);
-      return `<span class="ai-fix">💡 ${data.fix || "No suggestion available"}</span>`;
+    if (data.status !== "READY" && data.status !== "ERROR") {
+      await new Promise(r => setTimeout(r, 5000));
+      return poll();
     }
-    return `<span class="ai-fix">💡 ${data.fix}</span>`;
-  } catch (err) {
-    console.error(`AI fix error for "${issue}":`, err.message);
-    return `<span class="ai-fix">💡 AI service unavailable</span>`;
+    return data;
   }
-}
-
-async function aiExplain(title, issues) {
-  if (!issues.length) return `<p>✅ ${title} looks good.</p>`;
-  let html = "<ul>";
-  for (const issue of issues) {
-    const fix = await getAIFix(issue);
-    html += `<li>⚠ ${issue} ${fix}</li>`;
-  }
-  html += "</ul>";
-  return html;
-}
-
-// Master Run
-async function runAll() {
-  showLoader(true);
-  await Promise.allSettled([runAllScans(), runPerfScans(), runSEOScans()]);
-  generateFinalAI();
-  await saveHistory();
-  showLoader(false);
-}
-
-async function saveHistory() {
-  const email = localStorage.getItem("email");
-  if (!email) return;
-
-  const url = document.getElementById("urlInput").value.trim();
 
   try {
-    await fetch("/save-history", {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({
-        email,
-        url,
-        scanResults,
-        perfResults,
-        seoResults
-      })
-    });
-  } catch (err) {
-    console.error("❌ Failed to save history", err);
-  }
-}
-
-/* ========== SECURITY ========== */
-async function runAllScans() {
-  let url = document.getElementById("urlInput").value.trim();
-  if (!url) return alert("Enter a URL");
-  try {
-    const responses = await Promise.all([
-      fetch(`/scan/ssl?url=${encodeURIComponent(url)}`).then(r => r.json()),
-      fetch(`/scan/headers?url=${encodeURIComponent(url)}`).then(r => r.json()),
-      fetch(`/scan/libs?url=${encodeURIComponent(url)}`).then(r => r.json()),
-      fetch(`/scan/xss?url=${encodeURIComponent(url)}`).then(r => r.json()),
-      fetch(`/scan/ports?url=${encodeURIComponent(url)}`).then(r => r.json()),
-      fetch(`/scan/csrf?url=${encodeURIComponent(url)}`).then(r => r.json()),
-      fetch(`/scan/sensitive?url=${encodeURIComponent(url)}`).then(r => r.json())
-    ]);
-
-    scanResults = {
-      ssl: responses[0].endpoints?.map(e => `Grade: ${e.grade || "N/A"}`) || [],
-      headers: Object.entries(responses[1]).filter(([k, v]) => v.includes("❌")).map(([k, v]) => `${k} missing`),
-      libs: responses[2].filter(lib => lib.outdated).map(lib => `${lib.library} ${lib.current} (latest ${lib.latest})`),
-      xss: responses[3].findings || [],
-      ports: [...(responses[4].openPorts || []).map(p => `Port ${p} open`), ...(responses[4].adminPanels || []).map(p => `Admin panel found: ${p}`)],
-      csrf: (responses[5].forms || []).filter(f => !f.hasToken).map(f => `Form ${f.action} missing CSRF token`),
-      sensitive: responses[6].findings || []
-    };
-
-    document.getElementById("sslResults").innerHTML = `<h2>SSL/TLS Scan</h2>${renderScore(scanResults.ssl)}${await aiExplain("SSL/TLS", scanResults.ssl)}`;
-    document.getElementById("headerResults").innerHTML = `<h2>Security Headers</h2>${renderScore(scanResults.headers)}${await aiExplain("Headers", scanResults.headers)}`;
-    document.getElementById("libsResults").innerHTML = `<h2>Outdated JS Libraries</h2>${renderScore(scanResults.libs)}${await aiExplain("Libraries", scanResults.libs)}`;
-    document.getElementById("xssResults").innerHTML = `<h2>XSS</h2>${renderScore(scanResults.xss)}${await aiExplain("XSS", scanResults.xss)}`;
-    document.getElementById("portsResults").innerHTML = `<h2>Open Ports</h2>${renderScore(scanResults.ports)}${await aiExplain("Ports", scanResults.ports)}`;
-    document.getElementById("csrfResults").innerHTML = `<h2>CSRF</h2>${renderScore(scanResults.csrf)}${await aiExplain("CSRF", scanResults.csrf)}`;
-    document.getElementById("sensitiveResults").innerHTML = `<h2>Sensitive Data</h2>${renderScore(scanResults.sensitive)}${await aiExplain("Sensitive", scanResults.sensitive)}`;
-
-    updateChart();
-    generateAISecurity();
-  } catch (e) {
-    console.error(e);
-  }
-}
-
-function updateChart() {
-  let labels = Object.keys(scanResults);
-  let scores = labels.map(k => Math.max(0, 100 - (scanResults[k]?.length || 0) * 10));
-  let ctx = document.getElementById("scoreChart").getContext("2d");
-  if (chartInstance) chartInstance.destroy();
-  chartInstance = new Chart(ctx, {
-    type: "bar",
-    data: {
-      labels: labels,
-      datasets: [{
-        label: "Security Score",
-        data: scores,
-        backgroundColor: scores.map(s => s >= 80 ? "limegreen" : s >= 50 ? "orange" : "red")
-      }]
-    },
-    options: {
-      scales: { y: { beginAtZero: true, max: 100 } }
-    }
-  });
-}
-
-function generateAISecurity() {
-  let total = Object.values(scanResults).reduce((a, b) => a + b.length, 0);
-  let msg = total ? `⚠ ${total} security issues detected.` : `✅ Security looks strong.`;
-  document.getElementById("aiSecurity").innerHTML = `<h2>🤖 AI Feedback (Security)</h2><p>${msg}</p>`;
-}
-
-/* ========== PERFORMANCE ========== */
-async function runPerfScans() {
-  let url = document.getElementById("urlInput").value.trim();
-  if (!url) return alert("Enter a URL");
-  try {
-    const responses = await Promise.all([
-      fetch(`/perf/pageload?url=${encodeURIComponent(url)}`).then(r => r.json()),
-      fetch(`/perf/server?url=${encodeURIComponent(url)}`).then(r => r.json()),
-      fetch(`/perf/images?url=${encodeURIComponent(url)}`).then(r => r.json()),
-      fetch(`/perf/js-css?url=${encodeURIComponent(url)}`).then(r => r.json()),
-      fetch(`/perf/resources?url=${encodeURIComponent(url)}`).then(r => r.json())
-    ]);
-
-    perfResults = {
-      pageload: [`Load ${responses[0].loadTimeMs} ms`],
-      server: [`TTFB ${responses[1].ttfbMs} ms`],
-      images: (responses[2].images || []).map(i => `Image ${i.src} ${i.size}`),
-      jsCss: [`Blocking ${responses[3].blocking}`],
-      resources: (responses[4].resources || []).map(r => `${r.resource} took ${r.loadMs}ms`)
-    };
-
-    document.getElementById("pageloadResults").innerHTML = `<h2>Page Load</h2>${renderScore(perfResults.pageload)}${await aiExplain("Page Load", perfResults.pageload)}`;
-    document.getElementById("serverTimeResults").innerHTML = `<h2>Server Response</h2>${renderScore(perfResults.server)}${await aiExplain("Server", perfResults.server)}`;
-    document.getElementById("imageResults").innerHTML = `<h2>Images</h2>${renderScore(perfResults.images)}${await aiExplain("Images", perfResults.images)}`;
-    document.getElementById("jsCssResults").innerHTML = `<h2>JS/CSS</h2>${renderScore(perfResults.jsCss)}${await aiExplain("JS/CSS", perfResults.jsCss)}`;
-    document.getElementById("resourceResults").innerHTML = `<h2>Resources</h2>${renderScore(perfResults.resources)}${await aiExplain("Resources", perfResults.resources)}`;
-
-    updatePerfChart();
-    generateAIPerf();
-  } catch (e) {
-    console.error(e);
-  }
-}
-
-function updatePerfChart() {
-  let labels = Object.keys(perfResults);
-  let scores = labels.map(k => Math.max(0, 100 - (perfResults[k]?.length || 0) * 10));
-  let ctx = document.getElementById("perfChart").getContext("2d");
-  if (perfChartInstance) perfChartInstance.destroy();
-  perfChartInstance = new Chart(ctx, {
-    type: "bar",
-    data: {
-      labels: labels,
-      datasets: [{
-        label: "Performance Score",
-        data: scores,
-        backgroundColor: scores.map(s => s >= 80 ? "limegreen" : s >= 50 ? "orange" : "red")
-      }]
-    },
-    options: {
-      scales: { y: { beginAtZero: true, max: 100 } }
-    }
-  });
-}
-
-function generateAIPerf() {
-  let total = Object.values(perfResults).reduce((a, b) => a + b.length, 0);
-  let msg = total ? `⚠ ${total} performance issues detected.` : `✅ Performance looks strong.`;
-  document.getElementById("aiPerf").innerHTML = `<h2>🤖 AI Feedback (Performance)</h2><p>${msg}</p>`;
-}
-
-/* ========== SEO ========== */
-async function runSEOScans() {
-  let url = document.getElementById("urlInput").value.trim();
-  if (!url) return alert("Enter a URL");
-  try {
-    const responses = await Promise.all([
-      fetch(`/seo/meta?url=${encodeURIComponent(url)}`).then(r => r.json()),
-      fetch(`/seo/keywords?url=${encodeURIComponent(url)}`).then(r => r.json()),
-      fetch(`/seo/headings?url=${encodeURIComponent(url)}`).then(r => r.json()),
-      fetch(`/seo/url?url=${encodeURIComponent(url)}`).then(r => r.json()),
-      fetch(`/seo/mobile?url=${encodeURIComponent(url)}`).then(r => r.json()),
-      fetch(`/seo/broken?url=${encodeURIComponent(url)}`).then(r => r.json()),
-      fetch(`/seo/images?url=${encodeURIComponent(url)}`).then(r => r.json()),
-      fetch(`/seo/sitemap?url=${encodeURIComponent(url)}`).then(r => r.json()),
-      fetch(`/seo/backlinks?url=${encodeURIComponent(url)}`).then(r => r.json()),
-      fetch(`/seo/crawl?url=${encodeURIComponent(url)}`).then(r => r.json())
-    ]);
-
-    seoResults = {
-      meta: responses[0].issues || [],
-      keywords: responses[1].issues || [],
-      headings: responses[2].issues || [],
-      url: responses[3].issues || [],
-      mobile: responses[4].issues || [],
-      broken: responses[5].issues || [],
-      images: responses[6].issues || [],
-      sitemap: responses[7].issues || [],
-      backlinks: responses[8].issues || [],
-      crawl: responses[9].issues || []
-    };
-
-    document.getElementById("metaResults").innerHTML = `<h2>Meta Tags</h2>${renderScore(seoResults.meta)}${await aiExplain("Meta", seoResults.meta)}`;
-    document.getElementById("keywordResults").innerHTML = `<h2>Keywords</h2>${renderScore(seoResults.keywords)}${await aiExplain("Keywords", seoResults.keywords)}`;
-    document.getElementById("headingResults").innerHTML = `<h2>Headings</h2>${renderScore(seoResults.headings)}${await aiExplain("Headings", seoResults.headings)}`;
-    document.getElementById("urlResults").innerHTML = `<h2>URL</h2>${renderScore(seoResults.url)}${await aiExplain("URL", seoResults.url)}`;
-    document.getElementById("mobileResults").innerHTML = `<h2>Mobile</h2>${renderScore(seoResults.mobile)}${await aiExplain("Mobile", seoResults.mobile)}`;
-    document.getElementById("brokenResults").innerHTML = `<h2>Broken Links</h2>${renderScore(seoResults.broken)}${await aiExplain("Broken Links", seoResults.broken)}`;
-    document.getElementById("seoImageResults").innerHTML = `<h2>Images</h2>${renderScore(seoResults.images)}${await aiExplain("Images", seoResults.images)}`;
-    document.getElementById("sitemapResults").innerHTML = `<h2>Sitemap/Robots</h2>${renderScore(seoResults.sitemap)}${await aiExplain("Sitemap", seoResults.sitemap)}`;
-    document.getElementById("backlinkResults").innerHTML = `<h2>Backlinks</h2>${renderScore(seoResults.backlinks)}${await aiExplain("Backlinks", seoResults.backlinks)}`;
-    document.getElementById("crawlResults").innerHTML = `<h2>Crawl</h2>${renderScore(seoResults.crawl)}${await aiExplain("Crawl", seoResults.crawl)}`;
-
-    updateSEOChart();
-    generateAISEO();
-  } catch (e) {
-    console.error(e);
-  }
-}
-
-function updateSEOChart() {
-  let labels = Object.keys(seoResults);
-  let scores = labels.map(k => Math.max(0, 100 - (seoResults[k]?.length || 0) * 10));
-  let ctx = document.getElementById("seoChart").getContext("2d");
-  if (seoChartInstance) seoChartInstance.destroy();
-  seoChartInstance = new Chart(ctx, {
-    type: "bar",
-    data: {
-      labels: labels,
-      datasets: [{
-        label: "SEO Score",
-        data: scores,
-        backgroundColor: scores.map(s => s >= 80 ? "limegreen" : s >= 50 ? "orange" : "red")
-      }]
-    },
-    options: {
-      scales: { y: { beginAtZero: true, max: 100 } }
-    }
-  });
-}
-
-function generateAISEO() {
-  let total = Object.values(seoResults).reduce((a, b) => a + b.length, 0);
-  let msg = total ? `⚠ ${total} SEO issues detected.` : `✅ SEO looks strong.`;
-  document.getElementById("aiSEO").innerHTML = `<h2>🤖 AI Feedback (SEO)</h2><p>${msg}</p>`;
-}
-
-/* Final AI Summary */
-function generateFinalAI() {
-  let s = Object.values(scanResults).reduce((a, b) => a + b.length, 0),
-      p = Object.values(perfResults).reduce((a, b) => a + b.length, 0),
-      seo = Object.values(seoResults).reduce((a, b) => a + b.length, 0);
-  let msg = `Security: ${s} issues. Performance: ${p} issues. SEO: ${seo} issues.`;
-  if (s + p + seo === 0) msg += ` ✅ Everything looks great!`;
-  document.getElementById("aiFinal").innerHTML = `<h2>🤖 Overall AI Feedback</h2><p>${msg}</p>`;
-}
-
-// PDF REPORTS (unchanged)
-async function generateReport() {
-  if (!Object.keys(scanResults).length) return alert("Run security scans first!");
-  const res = await fetch("/generate-report", {
-    method: "POST",
-    headers: { "Content-Type": "application/json" },
-    body: JSON.stringify({ scanResults })
-  });
-  if (res.ok) {
-    const blob = await res.blob();
-    const url = URL.createObjectURL(blob);
-    const a = document.createElement("a");
-    a.href = url;
-    a.download = "SecurityReport.pdf";
-    a.click();
-    URL.revokeObjectURL(url);
-  }
-}
-
-async function generatePerformanceReport() {
-  if (!Object.keys(perfResults).length) return alert("Run performance scans first!");
-  const res = await fetch("/generate-report", {
-    method: "POST",
-    headers: { "Content-Type": "application/json" },
-    body: JSON.stringify({ scanResults: perfResults })
-  });
-  if (res.ok) {
-    const blob = await res.blob();
-    const url = URL.createObjectURL(blob);
-    const a = document.createElement("a");
-    a.href = url;
-    a.download = "PerformanceReport.pdf";
-    a.click();
-    URL.revokeObjectURL(url);
-  }
-}
-
-async function generateSEOReport() {
-  if (!Object.keys(seoResults).length) return alert("Run SEO scans first!");
-  const res = await fetch("/generate-report", {
-    method: "POST",
-    headers: { "Content-Type": "application/json" },
-    body: JSON.stringify({ scanResults: seoResults })
-  });
-  if (res.ok) {
-    const blob = await res.blob();
-    const url = URL.createObjectURL(blob);
-    const a = document.createElement("a");
-    a.href = url;
-    a.download = "SEOReport.pdf";
-    a.click();
-    URL.revokeObjectURL(url);
-  }
-}
-
-function toggleSidebar() {
-  const sidebar = document.getElementById("sidebar");
-  const main = document.getElementById("mainContent");
-  const menuBtn = document.getElementById("menuToggleBtn");
-
-  if (sidebar.classList.contains("-translate-x-full")) {
-    sidebar.classList.remove("-translate-x-full");
-    main.classList.add("ml-64");
-    if (menuBtn) menuBtn.style.display = "none";
-  } else {
-    sidebar.classList.add("-translate-x-full");
-    main.classList.remove("ml-64");
-    if (menuBtn) menuBtn.style.display = "";
-  }
-}
-
-// Load history from backend
-async function loadHistory() {
-  const email = localStorage.getItem("email");
-  if (!email) return;
-
-  try {
-    const res = await fetch(`/history?email=${encodeURIComponent(email)}`);
-    const history = await res.json();
-
-    const list = document.getElementById("historyList");
-    list.innerHTML = "";
-
-    if (history.length === 0) {
-      list.innerHTML = "<p class='text-gray-400'>No history yet</p>";
-      return;
-    }
-
-    history.forEach(entry => {
-      const item = document.createElement("div");
-      item.className = "p-2 bg-gray-800 rounded hover:bg-gray-700 cursor-pointer";
-      const dateStr = new Date(entry.timestamp).toLocaleString();
-      item.textContent = `${entry.url || "Unknown URL"} – ${dateStr}`;
-
-      item.onclick = () => loadHistoryEntry(entry);
-      list.appendChild(item);
-    });
-  } catch (err) {
-    console.error("❌ Failed to load history:", err);
-  }
-}
-
-// Handle clicking a history entry
-function loadHistoryEntry(entry) {
-  console.log("Loading history entry:", entry);
-
-  scanResults = entry.scanResults || {};
-  perfResults = entry.perfResults || {};
-  seoResults = entry.seoResults || {};
-
-  renderScanResults();
-  renderPerfResults();
-  renderSEOResults();
-
-  generateFinalAI();
-  toggleSidebar();
-}
-
-function renderScanResults() {
-  document.getElementById("sslResults").innerHTML = `<h2>SSL/TLS Scan</h2>${renderScore(scanResults.ssl)}${scanResults.ssl.join("<br>")}`;
-  document.getElementById("headerResults").innerHTML = `<h2>Security Headers</h2>${renderScore(scanResults.headers)}${scanResults.headers.join("<br>")}`;
-  document.getElementById("libsResults").innerHTML = `<h2>Outdated JS Libraries</h2>${renderScore(scanResults.libs)}${scanResults.libs.join("<br>")}`;
-  document.getElementById("xssResults").innerHTML = `<h2>XSS</h2>${renderScore(scanResults.xss)}${scanResults.xss.join("<br>")}`;
-  document.getElementById("portsResults").innerHTML = `<h2>Open Ports</h2>${renderScore(scanResults.ports)}${scanResults.ports.join("<br>")}`;
-  document.getElementById("csrfResults").innerHTML = `<h2>CSRF</h2>${renderScore(scanResults.csrf)}${scanResults.csrf.join("<br>")}`;
-  document.getElementById("sensitiveResults").innerHTML = `<h2>Sensitive Data</h2>${renderScore(scanResults.sensitive)}${scanResults.sensitive.join("<br>")}`;
-
-  updateChart();
-  generateAISecurity();
-}
-
-function renderPerfResults() {
-  document.getElementById("pageloadResults").innerHTML = `<h2>Page Load</h2>${renderScore(perfResults.pageload)}${perfResults.pageload.join("<br>")}`;
-  document.getElementById("serverTimeResults").innerHTML = `<h2>Server Response</h2>${renderScore(perfResults.server)}${perfResults.server.join("<br>")}`;
-  document.getElementById("imageResults").innerHTML = `<h2>Images</h2>${renderScore(perfResults.images)}${perfResults.images.join("<br>")}`;
-  document.getElementById("jsCssResults").innerHTML = `<h2>JS/CSS</h2>${renderScore(perfResults.jsCss)}${perfResults.jsCss.join("<br>")}`;
-  document.getElementById("resourceResults").innerHTML = `<h2>Resources</h2>${renderScore(perfResults.resources)}${perfResults.resources.join("<br>")}`;
-
-  updatePerfChart();
-  generateAIPerf();
-}
-
-function renderSEOResults() {
-  document.getElementById("metaResults").innerHTML = `<h2>Meta Tags</h2>${renderScore(seoResults.meta)}${seoResults.meta.join("<br>")}`;
-  document.getElementById("keywordResults").innerHTML = `<h2>Keywords</h2>${renderScore(seoResults.keywords)}${seoResults.keywords.join("<br>")}`;
-  document.getElementById("headingResults").innerHTML = `<h2>Headings</h2>${renderScore(seoResults.headings)}${seoResults.headings.join("<br>")}`;
-  document.getElementById("urlResults").innerHTML = `<h2>URL</h2>${renderScore(seoResults.url)}${seoResults.url.join("<br>")}`;
-  document.getElementById("mobileResults").innerHTML = `<h2>Mobile</h2>${renderScore(seoResults.mobile)}${seoResults.mobile.join("<br>")}`;
-  document.getElementById("brokenResults").innerHTML = `<h2>Broken Links</h2>${renderScore(seoResults.broken)}${seoResults.broken.join("<br>")}`;
-  document.getElementById("seoImageResults").innerHTML = `<h2>Images</h2>${renderScore(seoResults.images)}${seoResults.images.join("<br>")}`;
-  document.getElementById("sitemapResults").innerHTML = `<h2>Sitemap/Robots</h2>${renderScore(seoResults.sitemap)}${seoResults.sitemap.join("<br>")}`;
-  document.getElementById("backlinkResults").innerHTML = `<h2>Backlinks</h2>${renderScore(seoResults.backlinks)}${seoResults.backlinks.join("<br>")}`;
-  document.getElementById("crawlResults").innerHTML = `<h2>Crawl</h2>${renderScore(seoResults.crawl)}${seoResults.crawl.join("<br>")}`;
-
-  updateSEOChart();
-  generateAISEO();
-}
-
-// Load history whenever page opens
-window.addEventListener("DOMContentLoaded", loadHistory);
-
-// Rest of the frontend code (chatbot, cobweb animation, etc.) remains unchanged
-</script>
-
-<!-- AI Chatbot -->
-<div id="chatbot-container" style="
-    position: fixed; bottom: 20px; right: 20px;
-    display: flex; flex-direction: column; align-items: flex-end;
-    z-index: 9999;">
-  <div id="chat-window" style="
-      width: 320px; height: 0; overflow: hidden;
-      background: rgba(255,255,255,0.95); border-radius: 12px; box-shadow: 0 4px 20px rgba(0,0,0,0.2);
-      transition: height 0.3s ease;
-      display:flex; flex-direction:column;">
-    <div style="background:#4B0082;color:white;padding:10px;border-radius:12px 12px 0 0;">
-      AI Assistant
-    </div>
-    <div id="chat-messages" style="flex:1; min-height:0; overflow-y: auto; padding: 10px; font-size:14px;"></div>
-    <div style="display:flex; padding:10px; border-top:1px solid #ddd; gap:8px;">
-      <input id="chat-input" type="text" placeholder="Ask something..." style="flex:1;padding:8px;border:1px solid #ccc;border-radius:8px;"/>
-      <button id="send-btn" style="padding:8px 12px;background:#4B0082;color:white;border:none;border-radius:8px;">Send</button>
-    </div>
-  </div>
-  <button id="chatbot-btn" style="
-      width:60px;height:60px;border-radius:50%;background:#4B0082;color:white;
-      font-size:28px;border:none;cursor:pointer;display:flex;align-items:center;justify-content:center; margin-top:10px;">
-    💬
-  </button>
-</div>
-<script>
-const chatBtn = document.getElementById("chatbot-btn");
-const chatWindow = document.getElementById("chat-window");
-const sendBtn = document.getElementById("send-btn");
-const chatInput = document.getElementById("chat-input");
-const chatMessages = document.getElementById("chat-messages");
-
-let isOpen = false;
-chatBtn.addEventListener("click", () => {
-  isOpen = !isOpen;
-  chatWindow.style.height = isOpen ? "360px" : "0";
-});
-
-sendBtn.addEventListener("click", async () => {
-  const userText = chatInput.value.trim();
-  if (!userText) return;
-
-  addMessage("You", userText);
-  chatInput.value = "";
-
-  try {
-    const username = localStorage.getItem("username");
-    const res = await fetch("/ai-chat", {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ prompt: userText, username })
-    });
-    const data = await res.json();
-    addMessage("AI", data.reply || "No response");
-  } catch (err) {
-    addMessage("AI", "Error connecting to AI");
+    const result = await poll();
+    res.json(result);
+  } catch {
+    res.status(500).json({ error: "SSL Labs scan failed" });
   }
 });
 
-window.addEventListener("DOMContentLoaded", async () => {
-  const username = localStorage.getItem("username");
-  if (!username) return;
-
+app.get("/scan/headers", async (req, res) => {
+  let { url } = req.query;
+  if (!url.startsWith("http")) url = "https://" + url;
   try {
-    const res = await fetch(`/ai-history?username=${encodeURIComponent(username)}`);
-    const history = await res.json();
-    history.forEach(item => {
-      addMessage("You", item.prompt);
-      addMessage("AI", item.response);
-    });
-  } catch (err) {
-    console.error("Failed to load AI history");
+    const response = await fetch(url, { headers: { "User-Agent": "Mozilla/5.0" } });
+    const headers = {};
+    response.headers.forEach((value, key) => { headers[key.toLowerCase()] = value; });
+    const importantHeaders = {
+      "content-security-policy": headers["content-security-policy"] || "❌ Missing",
+      "strict-transport-security": headers["strict-transport-security"] || "❌ Missing",
+      "x-frame-options": headers["x-frame-options"] || "❌ Missing",
+      "x-content-type-options": headers["x-content-type-options"] || "❌ Missing",
+      "referrer-policy": headers["referrer-policy"] || "❌ Missing",
+      "permissions-policy": headers["permissions-policy"] || "❌ Missing"
+    };
+    res.json(importantHeaders);
+  } catch {
+    res.status(500).json({ error: "Header fetch failed" });
   }
 });
 
-function addMessage(sender, text) {
-  const div = document.createElement("div");
-  div.style.marginBottom = "8px";
-  div.innerHTML = `<strong>${sender}:</strong> ${text}`;
-  chatMessages.appendChild(div);
-  chatMessages.scrollTop = chatMessages.scrollHeight;
-}
-</script>
+app.get("/scan/libs", async (req, res) => {
+  let { url } = req.query;
+  if (!url.startsWith("http")) url = "https://" + url;
+  try {
+    const response = await fetch(url);
+    const body = await response.text();
+    const $ = cheerio.load(body);
 
-<!-- Cobweb animation (kept isolated and lightweight) -->
-<script>
-(function(){
-  const canvas = document.getElementById("cobweb");
-  if(!canvas) return;
-  const ctx = canvas.getContext("2d");
-  let particles = [];
-  function resize(){ canvas.width = window.innerWidth; canvas.height = window.innerHeight; }
-  window.addEventListener("resize", resize); resize();
+    const scripts = [];
+    $("script[src]").each((i, el) => scripts.push($(el).attr("src")));
+    const results = [];
 
-  class Particle{
-    constructor(){
-      this.x = Math.random()*canvas.width;
-      this.y = Math.random()*canvas.height;
-      this.vx = (Math.random()-0.5)*0.5;
-      this.vy = (Math.random()-0.5)*0.5;
-      this.r = 2;
-    }
-    move(){
-      this.x += this.vx; this.y += this.vy;
-      if(this.x<0||this.x>canvas.width) this.vx*=-1;
-      if(this.y<0||this.y>canvas.height) this.vy*=-1;
-    }
-    draw(){
-      ctx.beginPath();
-      ctx.arc(this.x,this.y,this.r,0,Math.PI*2);
-      ctx.fillStyle="rgba(255,255,255,0.8)";
-      ctx.fill();
-    }
-  }
-  function init(n){ particles=[]; for(let i=0;i<n;i++) particles.push(new Particle()); }
-  function connect(){
-    for(let i=0;i<particles.length;i++){
-      for(let j=i+1;j<particles.length;j++){
-        const a=particles[i], b=particles[j];
-        const dx=a.x-b.x, dy=a.y-b.y, d=Math.sqrt(dx*dx+dy*dy);
-        if(d<120){
-          ctx.beginPath();
-          ctx.moveTo(a.x,a.y); ctx.lineTo(b.x,b.y);
-          ctx.strokeStyle="rgba(255,255,255,0.09)";
-          ctx.lineWidth=1;
-          ctx.stroke();
-        }
+    for (const src of scripts) {
+      const match = src.match(/\/([^\/]+)-([\d\.]+)(?:\.min)?\.js/);
+      if (match) {
+        const libName = match[1];
+        const libVersion = match[2];
+        let latestVersion = "unknown";
+        let outdated = false;
+        let vulnerabilities = [];
+
+        try {
+          const cdnRes = await fetch(`https://api.cdnjs.com/libraries/${libName}?fields=version`);
+          const cdnData = await cdnRes.json();
+          if (cdnData.version) {
+            latestVersion = cdnData.version;
+            outdated = libVersion !== latestVersion;
+          }
+        } catch {}
+
+        try {
+          const ossRes = await fetch("https://ossindex.sonatype.org/api/v3/component-report", {
+            method: "POST",
+            headers: { "Content-Type": "application/vnd.ossindex.component-report-request+json" },
+            body: JSON.stringify({ coordinates: [`pkg:npm/${libName}@${libVersion}`] })
+          });
+          const ossData = await ossRes.json();
+          if (Array.isArray(ossData) && ossData.length > 0 && ossData[0].vulnerabilities) {
+            vulnerabilities = ossData[0].vulnerabilities.map(v => ({
+              title: v.title,
+              cve: v.cve,
+              severity: v.cvssScore
+            }));
+          }
+        } catch {}
+
+        results.push({ library: libName, current: libVersion, latest: latestVersion, outdated, vulnerabilities });
       }
     }
+    res.json(results.length ? results : []);
+  } catch {
+    res.status(500).json({ error: "Library scan failed" });
   }
-  function tick(){
-    ctx.clearRect(0,0,canvas.width,canvas.height);
-    particles.forEach(p=>{p.move(); p.draw();});
-    connect();
-    requestAnimationFrame(tick);
+});
+
+app.get("/scan/xss", async (req, res) => {
+  try {
+    const url = req.query.url;
+    const response = await fetch(url);
+    const html = await response.text();
+    const findings = [];
+    if (/<script[^>]*>/.test(html)) findings.push("Inline <script> tags found");
+    if (/on\w+=/i.test(html)) findings.push("Event handlers detected");
+    if (/javascript:/i.test(html)) findings.push("JavaScript links found");
+    if (/{{.*}}/.test(html)) findings.push("Unescaped template variables detected");
+    res.json({ url, findings });
+  } catch {
+    res.status(500).json({ error: "Failed to scan for XSS" });
   }
-  init(85); tick();
-})();
-</script>
-<script src="ai.js"></script>
-</body>
-</html>
+});
+
+app.get("/scan/ports", async (req, res) => {
+  const url = new URL(req.query.url.startsWith("http") ? req.query.url : "http://" + req.query.url);
+  const host = url.hostname;
+  const ports = [80, 443, 8080, 8443, 3000, 5000];
+  const open = [];
+  await Promise.all(
+    ports.map(p =>
+      new Promise(resolve => {
+        const client = (p === 443 ? https : http)
+          .request({ host, port: p, method: "HEAD", timeout: 2000 }, () => {
+            open.push(p);
+            resolve();
+          })
+          .on("error", () => resolve())
+          .end();
+      })
+    )
+  );
+  const panels = ["/admin", "/login", "/phpmyadmin"];
+  const panelHits = [];
+  for (const path of panels) {
+    try {
+      const r = await fetch(url.origin + path, { method: "HEAD" });
+      if (r.status < 400) panelHits.push(url.origin + path);
+    } catch {}
+  }
+  res.json({ host, openPorts: open, adminPanels: panelHits });
+});
+
+app.get("/scan/csrf", async (req, res) => {
+  try {
+    const url = req.query.url;
+    const response = await fetch(url);
+    const html = await response.text();
+    const $ = cheerio.load(html);
+    const forms = [];
+    $("form").each((i, el) => {
+      const inputs = $(el).find("input[type=hidden]");
+      let hasToken = false;
+      inputs.each((j, inp) => {
+        const name = $(inp).attr("name") || "";
+        if (/csrf|token|authenticity/i.test(name)) hasToken = true;
+      });
+      forms.push({ action: $(el).attr("action"), hasToken });
+    });
+    res.json({ url, forms });
+  } catch {
+    res.status(500).json({ error: "Failed CSRF scan" });
+  }
+});
+
+app.get("/scan/sensitive", async (req, res) => {
+  try {
+    const url = req.query.url;
+    const response = await fetch(url);
+    const html = await response.text();
+    const findings = [];
+    const regexes = {
+      apiKey: /(AIza[0-9A-Za-z-_]{35})/,
+      aws: /AKIA[0-9A-Z]{16}/,
+      email: /[A-Z0-9._%+-]+@[A-Z0-9.-]+\.[A-Z]{2,}/i,
+      secrets: /(password|secret|token)[\s:=].{4,}/i
+    };
+    for (const [name, regex] of Object.entries(regexes)) {
+      const match = html.match(regex);
+      if (match) findings.push(`${name}: ${match[0]}`);
+    }
+    res.json({ url, findings });
+  } catch {
+    res.status(500).json({ error: "Failed sensitive scan" });
+  }
+});
+
+// AI + SCORE ENGINE
+const PDFDocument = require("pdfkit");
+const fs = require("fs");
+
+const OPENROUTER_API_KEY = "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";
+
+// Helper: Calculate score and status
+function calculateScore(findings) {
+  if (!findings || findings.length === 0) return { score: 100, status: "Safe 🟢" };
+  const severity = findings.length * 10;
+  let score = Math.max(0, 100 - severity);
+  let status = score >= 80 ? "Safe 🟢" : score >= 50 ? "Warning 🟡" : "Critical 🔴";
+  return { score, status };
+}
+
+// Helper: Get AI suggestion (one-liner)
+async function getAISolution(issue) {
+  try {
+    const response = await fetch("https://openrouter.ai/api/v1/chat/completions", {
+      method: "POST",
+      headers: {
+        "Authorization": `Bearer ${OPENROUTER_API_KEY}`,
+        "Content-Type": "application/json"
+      },
+      body: JSON.stringify({
+        model: "openai/gpt-4o-mini",
+        messages: [{ role: "user", content: `Provide a concise, one-line fix for the web security or performance issue: "${issue}"` }],
+        max_tokens: 50 // Limit response length
+      })
+    });
+
+    if (!response.ok) {
+      console.error(`OpenRouter API error: Status ${response.status}, ${await response.text()}`);
+      return "AI service error";
+    }
+
+    const data = await response.json();
+    if (!data.choices || !data.choices[0]?.message?.content) {
+      console.error("OpenRouter API returned invalid response:", data);
+      return "No AI suggestion available";
+    }
+
+    return data.choices[0].message.content.trim();
+  } catch (err) {
+    console.error("AI suggestion fetch error:", err.message);
+    return "AI service unavailable";
+  }
+}
+
+// NEW ROUTE: AI fix per issue
+app.get("/ai-fix", async (req, res) => {
+  const { issue } = req.query;
+  if (!issue) return res.status(400).json({ error: "Missing ?issue parameter" });
+
+  const fix = await getAISolution(issue);
+  res.json({ issue, fix });
+});
+
+// Unified Report (unchanged)
+const QuickChart = require('quickchart-js');
+app.post("/generate-report", async (req, res) => {
+  try {
+    const { scanResults } = req.body;
+    res.setHeader("Content-Type", "application/pdf");
+    res.setHeader("Content-Disposition", "attachment; filename=SecurityReport.pdf");
+
+    const doc = new PDFDocument({ margin: 30 });
+    doc.pipe(res);
+
+    doc.fontSize(26).fillColor("#4B0082").text("🔐 Security Audit Report", { align: "center" });
+    doc.moveDown(0.5);
+    doc.fontSize(12).fillColor("#444").text(`Generated on: ${new Date().toLocaleString()}`, { align: "center" });
+    doc.moveDown(2);
+
+    let totalScore = 0;
+    const sectionScores = [];
+    for (const [scanType, findings] of Object.entries(scanResults)) {
+      const severity = findings.length * 10;
+      const score = Math.max(0, 100 - severity);
+      sectionScores.push({ scanType, score });
+      totalScore += score;
+    }
+    const overallScore = Math.round(totalScore / sectionScores.length);
+
+    doc.fontSize(18).fillColor("#000").text("📌 Summary", { underline: true });
+    doc.moveDown();
+    doc.fontSize(14).fillColor(overallScore >= 80 ? "green" : overallScore >= 50 ? "orange" : "red")
+      .text(`Overall Security Score: ${overallScore}%`);
+    doc.moveDown(0.5);
+    doc.fontSize(12).fillColor("#000").text("Highlights:");
+    doc.moveDown(0.5);
+    if (overallScore < 50) {
+      doc.fillColor("red").text("⚠️ Critical issues detected. Immediate action required!");
+    } else if (overallScore < 80) {
+      doc.fillColor("orange").text("⚠️ Some vulnerabilities found. Fix recommended.");
+    } else {
+      doc.fillColor("green").text("✅ Good security posture. Few minor issues detected.");
+    }
+    doc.moveDown(2);
+
+    try {
+      const qc = new QuickChart();
+      qc.setConfig({
+        type: 'bar',
+        data: {
+          labels: sectionScores.map(s => s.scanType.toUpperCase()),
+          datasets: [{
+            label: 'Security Score (%)',
+            data: sectionScores.map(s => s.score),
+            backgroundColor: sectionScores.map(s => s.score >= 80 ? 'green' : s.score >= 50 ? 'orange' : 'red')
+          }]
+        }
+      }).setWidth(500).setHeight(300).setBackgroundColor('white');
+
+      const chartImageBase64 = await qc.toDataUrl();
+      const chartBuffer = Buffer.from(chartImageBase64.split(",")[1], 'base64');
+      doc.image(chartBuffer, { align: "center", width: 400 });
+    } catch (chartErr) {
+      doc.fontSize(12).fillColor("red").text("⚠️ Unable to load chart. (Network issue)", { align: "center" });
+    }
+
+    doc.moveDown(2);
+
+    for (const [scanType, findings] of Object.entries(scanResults)) {
+      const severity = findings.length * 10;
+      const score = Math.max(0, 100 - severity);
+      const statusColor = score >= 80 ? "green" : score >= 50 ? "orange" : "red";
+
+      doc.fontSize(16).fillColor("#4B0082").text(`🔍 ${scanType.toUpperCase()}`);
+      doc.fontSize(12).fillColor(statusColor).text(`Score: ${score}%`);
+      doc.moveDown(0.5);
+
+      if (findings.length === 0) {
+        doc.fillColor("green").text("✅ No issues found.");
+      } else {
+        findings.forEach((issue, idx) => {
+          doc.fillColor("#000").text(`${idx + 1}. ${issue}`);
+        });
+      }
+      doc.moveDown(1);
+    }
+
+    doc.end();
+  } catch (err) {
+    console.error("Report generation error:", err);
+    if (!res.headersSent) {
+      res.status(500).json({ error: "Failed to generate report" });
+    }
+  }
+});
+
+// PERFORMANCE SCANNER ROUTES (unchanged)
+app.get("/perf/pageload", async (req, res) => {
+  const { url } = req.query;
+  if (!url) return res.status(400).json({ error: "Missing ?url" });
+
+  const start = Date.now();
+  try {
+    const response = await fetch(url);
+    await response.text();
+    const duration = Date.now() - start;
+    res.json({ url, loadTimeMs: duration });
+  } catch {
+    res.status(500).json({ error: "Page load test failed" });
+  }
+});
+
+app.get("/perf/server", async (req, res) => {
+  const { url } = req.query;
+  if (!url) return res.status(400).json({ error: "Missing ?url" });
+
+  const start = Date.now();
+  try {
+    const response = await fetch(url);
+    const firstByte = Date.now() - start;
+    res.json({ url, ttfbMs: firstByte, status: response.status });
+  } catch {
+    res.status(500).json({ error: "Server response test failed" });
+  }
+});
+
+app.get("/perf/images", async (req, res) => {
+  const { url } = req.query;
+  if (!url) return res.status(400).json({ error: "Missing ?url" });
+
+  try {
+    const response = await fetch(url);
+    const html = await response.text();
+    const $ = cheerio.load(html);
+
+    const images = [];
+    $("img").each((i, el) => {
+      const src = $(el).attr("src");
+      if (src) images.push(src);
+    });
+
+    const results = [];
+    for (let src of images.slice(0, 10)) {
+      try {
+        const imgRes = await fetch(src.startsWith("http") ? src : new URL(src, url).href, { method: "HEAD" });
+        const size = imgRes.headers.get("content-length") || "unknown";
+        results.push({ src, size });
+      } catch {
+        results.push({ src, size: "unknown" });
+      }
+    }
+
+    res.json({ url, images: results });
+  } catch {
+    res.status(500).json({ error: "Image scan failed" });
+  }
+});
+
+app.get("/perf/js-css", async (req, res) => {
+  const { url } = req.query;
+  try {
+    const response = await fetch(url);
+    const html = await response.text();
+    const $ = cheerio.load(html);
+
+    const scripts = $("script[src]").map((i, el) => $(el).attr("src")).get();
+    const styles = $("link[rel=stylesheet]").map((i, el) => $(el).attr("href")).get();
+
+    res.json({ url, scripts, styles, blocking: scripts.length + styles.length });
+  } catch {
+    res.status(500).json({ error: "JS/CSS scan failed" });
+  }
+});
+
+app.get("/perf/resources", async (req, res) => {
+  const { url } = req.query;
+  try {
+    const response = await fetch(url);
+    const html = await response.text();
+    const $ = cheerio.load(html);
+
+    const resources = [];
+    $("script[src], link[href], img[src]").each((i, el) => {
+      const attr = $(el).attr("src") || $(el).attr("href");
+      if (attr) resources.push(attr);
+    });
+
+    const results = [];
+    for (let r of resources.slice(0, 10)) {
+      const target = r.startsWith("http") ? r : new URL(r, url).href;
+      const start = Date.now();
+      try {
+        await fetch(target, { method: "HEAD" });
+        results.push({ resource: target, loadMs: Date.now() - start });
+      } catch {
+        results.push({ resource: target, loadMs: "failed" });
+      }
+    }
+
+    res.json({ url, resources: results });
+  } catch {
+    res.status(500).json({ error: "Resource loading scan failed" });
+  }
+});
+
+// SEO SCANNER ROUTES (unchanged)
+app.get("/seo/meta", async (req, res) => {
+  try {
+    let { url } = req.query;
+    if (!url.startsWith("http")) url = "https://" + url;
+    const response = await fetch(url);
+    const html = await response.text();
+    const $ = cheerio.load(html);
+    let issues = [];
+    if (!$("title").text()) issues.push("Missing <title> tag");
+    if (!$("meta[name=description]").attr("content")) issues.push("Missing meta description");
+    res.json({ issues });
+  } catch {
+    res.status(500).json({ error: "Meta analysis failed" });
+  }
+});
+
+app.get("/seo/keywords", async (req, res) => {
+  try {
+    let { url } = req.query;
+    if (!url.startsWith("http")) url = "https://" + url;
+    const response = await fetch(url);
+    const html = await response.text();
+    const text = cheerio.load(html)("body").text().toLowerCase();
+    let words = text.split(/\s+/);
+    let freq = {};
+    words.forEach(w => { if (w.length > 3) freq[w] = (freq[w] || 0) + 1; });
+    let top = Object.entries(freq).sort((a, b) => b[1] - a[1]).slice(0, 10);
+    res.json({ keywords: top, issues: [] });
+  } catch {
+    res.status(500).json({ error: "Keyword density failed" });
+  }
+});
+
+app.get("/seo/headings", async (req, res) => {
+  try {
+    let { url } = req.query;
+    if (!url.startsWith("http")) url = "https://" + url;
+    const response = await fetch(url);
+    const html = await response.text();
+    const $ = cheerio.load(html);
+    let h1 = $("h1").length, h2 = $("h2").length;
+    let issues = [];
+    if (h1 !== 1) issues.push(`Page has ${h1} H1 tags (should be exactly 1)`);
+    if (h2 < 1) issues.push("No H2 tags found");
+    res.json({ issues });
+  } catch {
+    res.status(500).json({ error: "Heading analysis failed" });
+  }
+});
+
+app.get("/seo/url", async (req, res) => {
+  try {
+    let { url } = req.query;
+    const issues = [];
+    if (url.length > 75) issues.push("URL too long");
+    if (url.includes("?")) issues.push("Dynamic parameters in URL");
+    res.json({ issues });
+  } catch {
+    res.status(500).json({ error: "URL structure failed" });
+  }
+});
+
+app.get("/seo/mobile", async (req, res) => {
+  try {
+    let { url } = req.query;
+    if (!url.startsWith("http")) url = "https://" + url;
+    const response = await fetch(url);
+    const html = await response.text();
+    const $ = cheerio.load(html);
+    let viewport = $("meta[name=viewport]").attr("content");
+    let issues = [];
+    if (!viewport) issues.push("Missing viewport meta tag");
+    res.json({ issues });
+  } catch {
+    res.status(500).json({ error: "Mobile friendliness failed" });
+  }
+});
+
+app.get("/seo/broken", async (req, res) => {
+  try {
+    let { url } = req.query;
+    if (!url.startsWith("http")) url = "https://" + url;
+    const response = await fetch(url);
+    const html = await response.text();
+    const $ = cheerio.load(html);
+    let links = $("a[href]").map((i, el) => $(el).attr("href")).get();
+    let issues = [];
+    for (let link of links.slice(0, 10)) {
+      try {
+        const r = await fetch(link.startsWith("http") ? link : new URL(link, url).href, { method: "HEAD" });
+        if (r.status >= 400) issues.push(`Broken link: ${link}`);
+      } catch {
+        issues.push(`Invalid link: ${link}`);
+      }
+    }
+    res.json({ issues });
+  } catch {
+    res.status(500).json({ error: "Broken link check failed" });
+  }
+});
+
+app.get("/seo/images", async (req, res) => {
+  try {
+    let { url } = req.query;
+    if (!url.startsWith("http")) url = "https://" + url;
+    const response = await fetch(url);
+    const html = await response.text();
+    const $ = cheerio.load(html);
+    let issues = [];
+    $("img").each((i, el) => {
+      if (!$(el).attr("alt")) issues.push("Image missing alt attribute");
+    });
+    res.json({ issues });
+  } catch {
+    res.status(500).json({ error: "Image optimization failed" });
+  }
+});
+
+app.get("/seo/sitemap", async (req, res) => {
+  try {
+    let { url } = req.query;
+    if (!url.startsWith("http")) url = "https://" + url;
+    const base = new URL(url).origin;
+    let issues = [];
+    try {
+      const sm = await fetch(base + "/sitemap.xml");
+      if (sm.status >= 400) issues.push("Missing sitemap.xml");
+    } catch { issues.push("Missing sitemap.xml"); }
+    try {
+      const rb = await fetch(base + "/robots.txt");
+      if (rb.status >= 400) issues.push("Missing robots.txt");
+    } catch { issues.push("Missing robots.txt"); }
+    res.json({ issues });
+  } catch {
+    res.status(500).json({ error: "Sitemap/robots check failed" });
+  }
+});
+
+app.get("/seo/backlinks", async (req, res) => {
+  try {
+    res.json({ issues: ["Backlink data requires external SEO API integration"] });
+  } catch {
+    res.status(500).json({ error: "Backlink check failed" });
+  }
+});
+
+app.get("/seo/crawl", async (req, res) => {
+  try {
+    let { url } = req.query;
+    if (!url.startsWith("http")) url = "https://" + url;
+    const response = await fetch(url);
+    let issues = [];
+    if (response.status >= 400) issues.push(`Homepage returned ${response.status}`);
+    res.json({ issues });
+  } catch {
+    res.status(500).json({ error: "Crawl error check failed" });
+  }
+});
+
+// Import history routes (assuming script.js handles history)
+require("./script")(app);
+
+// Start server
+const PORT = process.env.PORT || 3000;
+app.listen(PORT, () => console.log(`🚀 Server running on port ${PORT}`));
