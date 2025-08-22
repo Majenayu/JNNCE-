@@ -1,0 +1,506 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <title>🔐 Security & ⚡ Performance & 🌐 SEO Scanner</title>
+  <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+  <style>
+    body {margin:0;font-family:"Segoe UI",Arial,sans-serif;background:linear-gradient(to bottom,#1a1f4d,#4b0082);color:white;overflow-x:hidden;}
+    h1,h2{text-align:center;}
+    input,button{padding:10px 15px;border-radius:8px;border:none;margin:8px;font-size:15px;}
+    input{width:350px;outline:none;}
+    button{background:rgba(255,255,255,0.15);color:white;backdrop-filter:blur(10px);cursor:pointer;transition:all 0.3s ease;}
+    button:hover{background:rgba(255,255,255,0.3);transform:scale(1.05);}
+    .section{margin:25px auto;padding:20px;width:90%;max-width:900px;border-radius:15px;background:rgba(255,255,255,0.1);backdrop-filter:blur(12px);box-shadow:0 8px 25px rgba(0,0,0,0.3);}
+    .ok{color:#7CFC00;}.bad{color:#FF4C4C;}.warn{color:#FFA500;}
+    .score-box{font-weight:bold;margin:10px 0;}
+    #loader{position:fixed;top:0;left:0;width:100%;height:100%;display:flex;align-items:center;justify-content:center;background:rgba(0,0,0,0.8);z-index:1000;flex-direction:column;color:white;font-size:18px;}
+    .spinner{border:5px solid rgba(255,255,255,0.2);border-top:5px solid #00ffff;border-radius:50%;width:70px;height:70px;animation:spin 1s linear infinite;margin-bottom:15px;}
+    @keyframes spin{100%{transform:rotate(360deg);}}
+    #cobweb{position:fixed;top:0;left:0;width:100%;height:100%;z-index:-1;}
+    .container{display:flex;gap:20px;align-items:flex-start;padding:20px;}
+    .column{flex:1;}
+    .ai-fix{font-size:13px;color:#00ffff;margin-left:10px;}
+  </style>
+</head>
+<body>
+  <!-- Sidebar -->
+<div id="sidebar" class="fixed top-0 left-0 h-full w-64 bg-gray-900 text-white transform -translate-x-full transition-transform duration-300 z-50">
+  <div class="p-4 border-b border-gray-700 flex justify-between items-center">
+    <h2 class="text-lg font-bold">History</h2>
+   <!-- Sidebar Close Button -->
+<button onclick="toggleSidebar()" 
+  class="absolute top-4 right-4 z-[9999] bg-gray-800 text-white px-3 py-2 rounded-lg shadow hover:bg-gray-700">
+  ✖
+</button>
+</div>
+  <div id="historyList" class="overflow-y-auto h-[calc(100%-60px)] p-4 space-y-3 text-sm">
+    <!-- History items will load here -->
+  </div>
+</div>
+
+<!-- Sidebar Toggle Button -->
+
+<!-- Sidebar Toggle Button -->
+<button onclick="toggleSidebar()" 
+  class="fixed top-4 left-4 z-[9999] bg-gray-800 text-white px-3 py-2 rounded-lg shadow hover:bg-gray-700">
+  ☰
+</button>
+
+
+<div id="mainContent" class="transition-all duration-300 ml-0"></div>
+
+  <div id="loader" style="display:none;">
+    <div class="spinner"></div>Scanning in progress... Please wait.
+  </div>
+  <canvas id="cobweb"></canvas>
+
+  <h1>🔐 Security & ⚡ Performance & 🌐 SEO Scanner</h1>
+  <div style="text-align:center;">
+    <input id="urlInput" placeholder="Enter website URL (example.com or https://example.com)" />
+    <button onclick="runAll()">🚀 Run All Scans</button>
+    <button onclick="generateReport()">📄 Security Report</button>
+    <button onclick="generatePerformanceReport()">📄 Performance Report</button>
+    <button onclick="generateSEOReport()">📄 SEO Report</button>
+  </div>
+
+  <div class="container">
+    <!-- Security -->
+    <div class="column">
+      <h2>🔐 Security</h2>
+      <div id="sslResults" class="section"></div>
+      <div id="headerResults" class="section"></div>
+      <div id="libsResults" class="section"></div>
+      <div id="xssResults" class="section"></div>
+      <div id="portsResults" class="section"></div>
+      <div id="csrfResults" class="section"></div>
+      <div id="sensitiveResults" class="section"></div>
+      <div id="charts" class="section"><h2>📊 Security Overview</h2><canvas id="scoreChart"></canvas></div>
+      <div id="aiSecurity" class="section"><h2>🤖 AI Feedback (Security)</h2><p>⚡ Awaiting...</p></div>
+    </div>
+
+    <!-- Performance -->
+    <div class="column">
+      <h2>⚡ Performance</h2>
+      <div id="pageloadResults" class="section"></div>
+      <div id="serverTimeResults" class="section"></div>
+      <div id="imageResults" class="section"></div>
+      <div id="jsCssResults" class="section"></div>
+      <div id="resourceResults" class="section"></div>
+      <div id="perfCharts" class="section"><h2>📊 Performance Overview</h2><canvas id="perfChart"></canvas></div>
+      <div id="aiPerf" class="section"><h2>🤖 AI Feedback (Performance)</h2><p>⚡ Awaiting...</p></div>
+    </div>
+
+    <!-- SEO -->
+    <div class="column">
+      <h2>🌐 SEO</h2>
+      <div id="metaResults" class="section"></div>
+      <div id="keywordResults" class="section"></div>
+      <div id="headingResults" class="section"></div>
+      <div id="urlResults" class="section"></div>
+      <div id="mobileResults" class="section"></div>
+      <div id="brokenResults" class="section"></div>
+      <div id="seoImageResults" class="section"></div>
+      <div id="sitemapResults" class="section"></div>
+      <div id="backlinkResults" class="section"></div>
+      <div id="crawlResults" class="section"></div>
+      <div id="seoCharts" class="section"><h2>📊 SEO Overview</h2><canvas id="seoChart"></canvas></div>
+      <div id="aiSEO" class="section"><h2>🤖 AI Feedback (SEO)</h2><p>⚡ Awaiting...</p></div>
+    </div>
+  </div>
+
+  <div id="aiFinal" class="section"><h2>🤖 Overall AI Feedback</h2><p>⚡ Awaiting scans...</p></div>
+</div>
+<script>
+let scanResults={}, perfResults={}, seoResults={};
+let chartInstance, perfChartInstance, seoChartInstance;
+
+function showLoader(show=true){document.getElementById("loader").style.display=show?"flex":"none";}
+function renderScore(findings){let sev=(findings?.length||0)*10;let score=Math.max(0,100-sev);let status=score>=80?"<span class='ok'>🟢 Good</span>":score>=50?"<span class='warn'>🟡 Fair</span>":"<span class='bad'>🔴 Poor</span>";return `<div class="score-box">Score: ${score}% | Status: ${status}</div>`;}
+
+// Fetch AI fix from backend
+async function getAIFix(issue){
+  try{
+    const r=await fetch(`/ai-fix?issue=${encodeURIComponent(issue)}`);
+    const d=await r.json();
+    return `<span class="ai-fix">💡 ${d.fix}</span>`;
+  }catch{return "";}
+}
+
+async function aiExplain(title, issues){
+  if(!issues.length) return `<p>✅ ${title} looks good.</p>`;
+  let html="<ul>";
+  for(const i of issues){
+    const fix=await getAIFix(i);
+    html+=`<li>⚠️ ${i} ${fix}</li>`;
+  }
+  html+="</ul>";
+  return html;
+}
+
+// Master Run
+async function runAll(){
+  showLoader(true);
+  await Promise.allSettled([runAllScans(), runPerfScans(), runSEOScans()]);
+  generateFinalAI();
+  await saveHistory();  // Save to backend
+  showLoader(false);
+}
+
+async function saveHistory(){
+  const email = localStorage.getItem("email");
+  if (!email) return;
+
+  const url = document.getElementById("urlInput").value.trim();
+
+  try {
+    await fetch("/save-history", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({
+        email,
+        url,   // ✅ save url too
+        scanResults,
+        perfResults,
+        seoResults
+      })
+    });
+  } catch (err) {
+    console.error("❌ Failed to save history", err);
+  }
+}
+
+async function saveHistory(){
+  const email = localStorage.getItem("email");
+  if (!email) return;
+
+  const url = document.getElementById("urlInput").value.trim();
+
+  try {
+    await fetch("/save-history", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({
+        email,
+        url,   // ✅ add this
+        scanResults,
+        perfResults,
+        seoResults
+      })
+    });
+  } catch (err) {
+    console.error("❌ Failed to save history", err);
+  }
+}
+
+/* ========== SECURITY ========== */
+async function runAllScans(){
+  let url=document.getElementById("urlInput").value.trim();if(!url)return alert("Enter a URL");
+  try{
+    const responses=await Promise.all([
+      fetch(`/scan/ssl?url=${encodeURIComponent(url)}`).then(r=>r.json()),
+      fetch(`/scan/headers?url=${encodeURIComponent(url)}`).then(r=>r.json()),
+      fetch(`/scan/libs?url=${encodeURIComponent(url)}`).then(r=>r.json()),
+      fetch(`/scan/xss?url=${encodeURIComponent(url)}`).then(r=>r.json()),
+      fetch(`/scan/ports?url=${encodeURIComponent(url)}`).then(r=>r.json()),
+      fetch(`/scan/csrf?url=${encodeURIComponent(url)}`).then(r=>r.json()),
+      fetch(`/scan/sensitive?url=${encodeURIComponent(url)}`).then(r=>r.json())
+    ]);
+
+    scanResults={
+      ssl: responses[0].endpoints?.map(e=>`Grade: ${e.grade||"N/A"}`) || [],
+      headers: Object.entries(responses[1]).filter(([k,v])=>v.includes("❌")).map(([k,v])=>`${k} missing`),
+      libs: responses[2].filter(lib=>lib.outdated).map(lib=>`${lib.library} ${lib.current} (latest ${lib.latest})`),
+      xss: responses[3].findings || [],
+      ports: [...(responses[4].openPorts||[]).map(p=>`Port ${p} open`),...(responses[4].adminPanels||[]).map(p=>`Admin panel found: ${p}`)],
+      csrf: (responses[5].forms||[]).filter(f=>!f.hasToken).map(f=>`Form ${f.action} missing CSRF token`),
+      sensitive: responses[6].findings || []
+    };
+
+    document.getElementById("sslResults").innerHTML=`<h2>SSL/TLS Scan</h2>${renderScore(scanResults.ssl)}${await aiExplain("SSL/TLS",scanResults.ssl)}`;
+    document.getElementById("headerResults").innerHTML=`<h2>Security Headers</h2>${renderScore(scanResults.headers)}${await aiExplain("Headers",scanResults.headers)}`;
+    document.getElementById("libsResults").innerHTML=`<h2>Outdated JS Libraries</h2>${renderScore(scanResults.libs)}${await aiExplain("Libraries",scanResults.libs)}`;
+    document.getElementById("xssResults").innerHTML=`<h2>XSS</h2>${renderScore(scanResults.xss)}${await aiExplain("XSS",scanResults.xss)}`;
+    document.getElementById("portsResults").innerHTML=`<h2>Open Ports</h2>${renderScore(scanResults.ports)}${await aiExplain("Ports",scanResults.ports)}`;
+    document.getElementById("csrfResults").innerHTML=`<h2>CSRF</h2>${renderScore(scanResults.csrf)}${await aiExplain("CSRF",scanResults.csrf)}`;
+    document.getElementById("sensitiveResults").innerHTML=`<h2>Sensitive Data</h2>${renderScore(scanResults.sensitive)}${await aiExplain("Sensitive",scanResults.sensitive)}`;
+
+    updateChart(); generateAISecurity();
+  }catch(e){console.error(e);}
+}
+function updateChart(){let labels=Object.keys(scanResults);let scores=labels.map(k=>Math.max(0,100-(scanResults[k]?.length||0)*10));let ctx=document.getElementById("scoreChart").getContext("2d");if(chartInstance)chartInstance.destroy();chartInstance=new Chart(ctx,{type:"bar",data:{labels:labels,datasets:[{label:"Security Score",data:scores,backgroundColor:scores.map(s=>s>=80?"limegreen":s>=50?"orange":"red")}]},options:{scales:{y:{beginAtZero:true,max:100}}}});}
+function generateAISecurity(){let total=Object.values(scanResults).reduce((a,b)=>a+b.length,0);let msg=total?`⚠️ ${total} security issues detected.`:"✅ Security looks strong.";document.getElementById("aiSecurity").innerHTML="<h2>🤖 AI Feedback (Security)</h2><p>"+msg+"</p>";}
+
+/* ========== PERFORMANCE ========== */
+async function runPerfScans(){
+  let url=document.getElementById("urlInput").value.trim();if(!url)return alert("Enter a URL");
+  try{
+    const responses=await Promise.all([
+      fetch(`/perf/pageload?url=${encodeURIComponent(url)}`).then(r=>r.json()),
+      fetch(`/perf/server?url=${encodeURIComponent(url)}`).then(r=>r.json()),
+      fetch(`/perf/images?url=${encodeURIComponent(url)}`).then(r=>r.json()),
+      fetch(`/perf/js-css?url=${encodeURIComponent(url)}`).then(r=>r.json()),
+      fetch(`/perf/resources?url=${encodeURIComponent(url)}`).then(r=>r.json())
+    ]);
+    perfResults={
+      pageload:[`Load ${responses[0].loadTimeMs} ms`],
+      server:[`TTFB ${responses[1].ttfbMs} ms`],
+      images:(responses[2].images||[]).map(i=>`Image ${i.src} ${i.size}`),
+      jsCss:[`Blocking ${responses[3].blocking}`],
+      resources:(responses[4].resources||[]).map(r=>`${r.resource} took ${r.loadMs}ms`)
+    };
+    document.getElementById("pageloadResults").innerHTML=`<h2>Page Load</h2>${renderScore(perfResults.pageload)}${await aiExplain("Page Load",perfResults.pageload)}`;
+    document.getElementById("serverTimeResults").innerHTML=`<h2>Server Response</h2>${renderScore(perfResults.server)}${await aiExplain("Server",perfResults.server)}`;
+    document.getElementById("imageResults").innerHTML=`<h2>Images</h2>${renderScore(perfResults.images)}${await aiExplain("Images",perfResults.images)}`;
+    document.getElementById("jsCssResults").innerHTML=`<h2>JS/CSS</h2>${renderScore(perfResults.jsCss)}${await aiExplain("JS/CSS",perfResults.jsCss)}`;
+    document.getElementById("resourceResults").innerHTML=`<h2>Resources</h2>${renderScore(perfResults.resources)}${await aiExplain("Resources",perfResults.resources)}`;
+    updatePerfChart(); generateAIPerf();
+  }catch(e){console.error(e);}
+}
+function updatePerfChart(){let labels=Object.keys(perfResults);let scores=labels.map(k=>Math.max(0,100-(perfResults[k]?.length||0)*10));let ctx=document.getElementById("perfChart").getContext("2d");if(perfChartInstance)perfChartInstance.destroy();perfChartInstance=new Chart(ctx,{type:"bar",data:{labels:labels,datasets:[{label:"Performance Score",data:scores,backgroundColor:scores.map(s=>s>=80?"limegreen":s>=50?"orange":"red")}]},options:{scales:{y:{beginAtZero:true,max:100}}}});}
+function generateAIPerf(){let total=Object.values(perfResults).reduce((a,b)=>a+b.length,0);let msg=total?`⚠️ ${total} performance issues detected.`:"✅ Performance looks strong.";document.getElementById("aiPerf").innerHTML="<h2>🤖 AI Feedback (Performance)</h2><p>"+msg+"</p>";}
+
+/* ========== SEO ========== */
+async function runSEOScans(){
+  let url=document.getElementById("urlInput").value.trim();if(!url)return alert("Enter a URL");
+  try{
+    const responses=await Promise.all([
+      fetch(`/seo/meta?url=${encodeURIComponent(url)}`).then(r=>r.json()),
+      fetch(`/seo/keywords?url=${encodeURIComponent(url)}`).then(r=>r.json()),
+      fetch(`/seo/headings?url=${encodeURIComponent(url)}`).then(r=>r.json()),
+      fetch(`/seo/url?url=${encodeURIComponent(url)}`).then(r=>r.json()),
+      fetch(`/seo/mobile?url=${encodeURIComponent(url)}`).then(r=>r.json()),
+      fetch(`/seo/broken?url=${encodeURIComponent(url)}`).then(r=>r.json()),
+      fetch(`/seo/images?url=${encodeURIComponent(url)}`).then(r=>r.json()),
+      fetch(`/seo/sitemap?url=${encodeURIComponent(url)}`).then(r=>r.json()),
+      fetch(`/seo/backlinks?url=${encodeURIComponent(url)}`).then(r=>r.json()),
+      fetch(`/seo/crawl?url=${encodeURIComponent(url)}`).then(r=>r.json())
+    ]);
+
+    seoResults={
+      meta: responses[0].issues || [],
+      keywords: responses[1].issues || [],
+      headings: responses[2].issues || [],
+      url: responses[3].issues || [],
+      mobile: responses[4].issues || [],
+      broken: responses[5].issues || [],
+      images: responses[6].issues || [],
+      sitemap: responses[7].issues || [],
+      backlinks: responses[8].issues || [],
+      crawl: responses[9].issues || []
+    };
+
+    document.getElementById("metaResults").innerHTML=`<h2>Meta Tags</h2>${renderScore(seoResults.meta)}${await aiExplain("Meta",seoResults.meta)}`;
+    document.getElementById("keywordResults").innerHTML=`<h2>Keywords</h2>${await aiExplain("Keywords",seoResults.keywords)}`;
+    document.getElementById("headingResults").innerHTML=`<h2>Headings</h2>${renderScore(seoResults.headings)}${await aiExplain("Headings",seoResults.headings)}`;
+    document.getElementById("urlResults").innerHTML=`<h2>URL</h2>${renderScore(seoResults.url)}${await aiExplain("URL",seoResults.url)}`;
+    document.getElementById("mobileResults").innerHTML=`<h2>Mobile</h2>${renderScore(seoResults.mobile)}${await aiExplain("Mobile",seoResults.mobile)}`;
+    document.getElementById("brokenResults").innerHTML=`<h2>Broken Links</h2>${renderScore(seoResults.broken)}${await aiExplain("Broken Links",seoResults.broken)}`;
+    document.getElementById("seoImageResults").innerHTML=`<h2>Images</h2>${renderScore(seoResults.images)}${await aiExplain("Images",seoResults.images)}`;
+    document.getElementById("sitemapResults").innerHTML=`<h2>Sitemap/Robots</h2>${renderScore(seoResults.sitemap)}${await aiExplain("Sitemap",seoResults.sitemap)}`;
+    document.getElementById("backlinkResults").innerHTML=`<h2>Backlinks</h2>${await aiExplain("Backlinks",seoResults.backlinks)}`;
+    document.getElementById("crawlResults").innerHTML=`<h2>Crawl</h2>${renderScore(seoResults.crawl)}${await aiExplain("Crawl",seoResults.crawl)}`;
+
+    updateSEOChart(); generateAISEO();
+  }catch(e){console.error(e);}
+}
+function updateSEOChart(){let labels=Object.keys(seoResults);let scores=labels.map(k=>Math.max(0,100-(seoResults[k]?.length||0)*10));let ctx=document.getElementById("seoChart").getContext("2d");if(seoChartInstance)seoChartInstance.destroy();seoChartInstance=new Chart(ctx,{type:"bar",data:{labels:labels,datasets:[{label:"SEO Score",data:scores,backgroundColor:scores.map(s=>s>=80?"limegreen":s>=50?"orange":"red")}]},options:{scales:{y:{beginAtZero:true,max:100}}}});}
+function generateAISEO(){let total=Object.values(seoResults).reduce((a,b)=>a+b.length,0);let msg=total?`⚠️ ${total} SEO issues detected.`:"✅ SEO looks strong.";document.getElementById("aiSEO").innerHTML="<h2>🤖 AI Feedback (SEO)</h2><p>"+msg+"</p>";}
+
+/* Final AI Summary */
+function generateFinalAI(){
+  let s=Object.values(scanResults).reduce((a,b)=>a+b.length,0),
+      p=Object.values(perfResults).reduce((a,b)=>a+b.length,0),
+      seo=Object.values(seoResults).reduce((a,b)=>a+b.length,0);
+  let msg=`Security: ${s} issues. Performance: ${p} issues. SEO: ${seo} issues.`;
+  if(s+p+seo===0)msg+=" ✅ Everything looks great!";
+  document.getElementById("aiFinal").innerHTML="<h2>🤖 Overall AI Feedback</h2><p>"+msg+"</p>";
+}
+
+// ---------- PDF REPORTS ----------
+async function generateReport(){
+  if(!Object.keys(scanResults).length) return alert("Run security scans first!");
+  const res = await fetch("/generate-report", {
+    method: "POST",
+    headers: {"Content-Type":"application/json"},
+    body: JSON.stringify({ scanResults })
+  });
+  if(res.ok){
+    const blob = await res.blob();
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement("a");
+    a.href = url;
+    a.download = "SecurityReport.pdf";
+    a.click();
+    URL.revokeObjectURL(url);
+  }
+}
+
+async function generatePerformanceReport(){
+  if(!Object.keys(perfResults).length) return alert("Run performance scans first!");
+  const res = await fetch("/generate-report", {
+    method: "POST",
+    headers: {"Content-Type":"application/json"},
+    body: JSON.stringify({ scanResults: perfResults })
+  });
+  if(res.ok){
+    const blob = await res.blob();
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement("a");
+    a.href = url;
+    a.download = "PerformanceReport.pdf";
+    a.click();
+    URL.revokeObjectURL(url);
+  }
+}
+
+async function generateSEOReport(){
+  if(!Object.keys(seoResults).length) return alert("Run SEO scans first!");
+  const res = await fetch("/generate-report", {
+    method: "POST",
+    headers: {"Content-Type":"application/json"},
+    body: JSON.stringify({ scanResults: seoResults })
+  });
+  if(res.ok){
+    const blob = await res.blob();
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement("a");
+    a.href = url;
+    a.download = "SEOReport.pdf";
+    a.click();
+    URL.revokeObjectURL(url);
+  }
+}
+function toggleSidebar() {
+  const sidebar = document.getElementById("sidebar");
+  const main = document.getElementById("mainContent");
+
+  if (sidebar.classList.contains("-translate-x-full")) {
+    sidebar.classList.remove("-translate-x-full");
+    main.classList.add("ml-64");  // shrink when sidebar open
+  } else {
+    sidebar.classList.add("-translate-x-full");
+    main.classList.remove("ml-64"); // expand back
+  }
+}
+
+// Load history from backend
+async function loadHistory() {
+  const email = localStorage.getItem("email");
+  if (!email) return;
+
+  try {
+    const res = await fetch(`/history?email=${encodeURIComponent(email)}`);
+    const history = await res.json();
+
+    const list = document.getElementById("historyList");
+    list.innerHTML = "";
+
+    if (history.length === 0) {
+      list.innerHTML = "<p class='text-gray-400'>No history yet</p>";
+      return;
+    }
+
+    history.forEach(entry => {
+      const item = document.createElement("div");
+      item.className = "p-2 bg-gray-800 rounded hover:bg-gray-700 cursor-pointer";
+      const dateStr = new Date(entry.timestamp).toLocaleString();
+item.textContent = `${entry.url || "Unknown URL"} – ${dateStr}`;
+
+      item.onclick = () => loadHistoryEntry(entry);
+      list.appendChild(item);
+    });
+  } catch (err) {
+    console.error("❌ Failed to load history:", err);
+  }
+}
+
+// Handle clicking a history entry
+function loadHistoryEntry(entry) {
+  console.log("Loading history entry:", entry);
+
+  // Restore saved data
+  scanResults = entry.scanResults || {};
+  perfResults = entry.perfResults || {};
+  seoResults = entry.seoResults || {};
+
+  // Re-render panels
+  renderScanResults();
+  renderPerfResults();
+  renderSEOResults();
+
+  // Optionally regenerate AI summary
+  generateFinalAI();
+
+  // Close sidebar after clicking
+  toggleSidebar();
+}
+
+// Load history whenever page opens
+window.addEventListener("DOMContentLoaded", loadHistory);
+
+function renderScanResults() {
+  document.getElementById("sslResults").innerHTML =
+    `<h2>SSL/TLS Scan</h2>${renderScore(scanResults.ssl)}${scanResults.ssl.join("<br>")}`;
+  document.getElementById("headerResults").innerHTML =
+    `<h2>Security Headers</h2>${renderScore(scanResults.headers)}${scanResults.headers.join("<br>")}`;
+  document.getElementById("libsResults").innerHTML =
+    `<h2>Outdated JS Libraries</h2>${renderScore(scanResults.libs)}${scanResults.libs.join("<br>")}`;
+  document.getElementById("xssResults").innerHTML =
+    `<h2>XSS</h2>${renderScore(scanResults.xss)}${scanResults.xss.join("<br>")}`;
+  document.getElementById("portsResults").innerHTML =
+    `<h2>Open Ports</h2>${renderScore(scanResults.ports)}${scanResults.ports.join("<br>")}`;
+  document.getElementById("csrfResults").innerHTML =
+    `<h2>CSRF</h2>${renderScore(scanResults.csrf)}${scanResults.csrf.join("<br>")}`;
+  document.getElementById("sensitiveResults").innerHTML =
+    `<h2>Sensitive Data</h2>${renderScore(scanResults.sensitive)}${scanResults.sensitive.join("<br>")}`;
+
+  updateChart();
+  generateAISecurity();
+}
+
+function renderPerfResults() {
+  document.getElementById("pageloadResults").innerHTML =
+    `<h2>Page Load</h2>${renderScore(perfResults.pageload)}${perfResults.pageload.join("<br>")}`;
+  document.getElementById("serverTimeResults").innerHTML =
+    `<h2>Server Response</h2>${renderScore(perfResults.server)}${perfResults.server.join("<br>")}`;
+  document.getElementById("imageResults").innerHTML =
+    `<h2>Images</h2>${renderScore(perfResults.images)}${perfResults.images.join("<br>")}`;
+  document.getElementById("jsCssResults").innerHTML =
+    `<h2>JS/CSS</h2>${renderScore(perfResults.jsCss)}${perfResults.jsCss.join("<br>")}`;
+  document.getElementById("resourceResults").innerHTML =
+    `<h2>Resources</h2>${renderScore(perfResults.resources)}${perfResults.resources.join("<br>")}`;
+
+  updatePerfChart();
+  generateAIPerf();
+}
+
+function renderSEOResults() {
+  document.getElementById("metaResults").innerHTML =
+    `<h2>Meta Tags</h2>${renderScore(seoResults.meta)}${seoResults.meta.join("<br>")}`;
+  document.getElementById("keywordResults").innerHTML =
+    `<h2>Keywords</h2>${seoResults.keywords.join("<br>")}`;
+  document.getElementById("headingResults").innerHTML =
+    `<h2>Headings</h2>${renderScore(seoResults.headings)}${seoResults.headings.join("<br>")}`;
+  document.getElementById("urlResults").innerHTML =
+    `<h2>URL</h2>${renderScore(seoResults.url)}${seoResults.url.join("<br>")}`;
+  document.getElementById("mobileResults").innerHTML =
+    `<h2>Mobile</h2>${renderScore(seoResults.mobile)}${seoResults.mobile.join("<br>")}`;
+  document.getElementById("brokenResults").innerHTML =
+    `<h2>Broken Links</h2>${renderScore(seoResults.broken)}${seoResults.broken.join("<br>")}`;
+  document.getElementById("seoImageResults").innerHTML =
+    `<h2>Images</h2>${renderScore(seoResults.images)}${seoResults.images.join("<br>")}`;
+  document.getElementById("sitemapResults").innerHTML =
+    `<h2>Sitemap/Robots</h2>${renderScore(seoResults.sitemap)}${seoResults.sitemap.join("<br>")}`;
+  document.getElementById("backlinkResults").innerHTML =
+    `<h2>Backlinks</h2>${seoResults.backlinks.join("<br>")}`;
+  document.getElementById("crawlResults").innerHTML =
+    `<h2>Crawl</h2>${renderScore(seoResults.crawl)}${seoResults.crawl.join("<br>")}`;
+
+  updateSEOChart();
+  generateAISEO();
+}
+
+</script>
+</body>
+</html>
