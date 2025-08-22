@@ -30,10 +30,11 @@ const User = mongoose.model("User", userSchema);
 app.use((req, res, next) => {
   res.setHeader(
     "Content-Security-Policy",
-    "default-src 'self'; style-src 'self' 'unsafe-inline' https://unpkg.com; script-src 'self' 'unsafe-inline' https://unpkg.com;"
+    "default-src 'self'; style-src 'self' 'unsafe-inline'; script-src 'self' 'unsafe-inline' https://cdn.tailwindcss.com;"
   );
   next();
 });
+
 
 
 // ------------------- AUTH ROUTES -------------------
