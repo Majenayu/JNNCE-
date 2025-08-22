@@ -29,8 +29,6 @@ mongoose.connect("mongodb+srv://nss:nss@nss.otjxidx.mongodb.net/?retryWrites=tru
   .then(() => console.log("✅ MongoDB connected"))
   .catch(err => console.error("❌ MongoDB error:", err));
 
-  const AI_CHAT_API_KEY = "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";
-const AI_CHAT_API_URL = "https://openrouter.ai/api/v1/chat/completions";
 
 
 // ✅ User Schema
@@ -720,6 +718,9 @@ app.get("/seo/crawl", async (req, res) => {
 
 
 
+const AI_CHAT_API_KEY = "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";
+const AI_CHAT_API_URL = "https://openrouter.ai/api/v1/chat/completions";
+
 app.post("/chat-ai", async (req, res) => {
   try {
     const { email, prompt } = req.body;
@@ -727,19 +728,21 @@ app.post("/chat-ai", async (req, res) => {
       return res.status(400).json({ error: "Missing email or prompt" });
     }
 
-    // Call OpenRouter API
+    console.log("Incoming Chat Request:", email, prompt);
+
+    // OpenRouter API call
     const response = await fetch(AI_CHAT_API_URL, {
       method: "POST",
       headers: {
         "Authorization": `Bearer ${AI_CHAT_API_KEY}`,
         "Content-Type": "application/json",
-        "HTTP-Referer": "http://localhost:3000",
+        "HTTP-Referer": "https://jnnce.onrender.com",  // required by OpenRouter
         "X-Title": "AI Chatbot"
       },
       body: JSON.stringify({
         model: "openai/gpt-4o-mini",
         messages: [
-          { role: "system", content: "You are an assistant that explains topics clearly in simple language." },
+          { role: "system", content: "You are an assistant that explains topics clearly and concisely." },
           { role: "user", content: prompt }
         ],
         temperature: 0.7,
@@ -748,26 +751,32 @@ app.post("/chat-ai", async (req, res) => {
     });
 
     if (!response.ok) {
-      const errorText = await response.text();
-      console.error("AI API Error:", errorText);
-      return res.status(500).json({ error: "AI service error" });
+      const errText = await response.text();
+      console.error("OpenRouter API Error:", errText);
+      return res.status(502).json({ error: "AI service error" });
     }
 
     const data = await response.json();
     const aiReply = data.choices?.[0]?.message?.content || "No response from AI";
 
-    // Save conversation to user document
-    await User.updateOne(
-      { email },
-      { $push: { aiHistory: { prompt, response: aiReply } } }
-    );
+    // Save chat history if user exists
+    const user = await User.findOne({ email: email.trim() });
+    if (!user) {
+      console.warn(`User not found in DB for email: ${email}`);
+    } else {
+      await User.updateOne(
+        { email: email.trim() },
+        { $push: { aiHistory: { prompt, response: aiReply } } }
+      );
+    }
 
     res.json({ reply: aiReply });
   } catch (err) {
     console.error("Chat AI error:", err);
-    res.status(500).json({ error: "Failed to process AI request" });
+    res.status(500).json({ error: "Internal server error" });
   }
 });
+
 
 
 
