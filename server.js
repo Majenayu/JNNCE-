@@ -6,10 +6,22 @@ const fetch = (...args) => import("node-fetch").then(({ default: fetch }) => fet
 const cheerio = require("cheerio");
 const http = require("http");
 const https = require("https");
+const PDFDocument = require("pdfkit");
+const QuickChart = require("quickchart-js");
 
 const app = express();
 app.use(express.json());
 app.use(cors());
+
+// Security Headers
+app.use((req, res, next) => {
+  res.setHeader("Strict-Transport-Security", "max-age=31536000; includeSubDomains");
+  res.setHeader("X-Frame-Options", "DENY");
+  res.setHeader("X-Content-Type-Options", "nosniff");
+  res.setHeader("Referrer-Policy", "no-referrer");
+  res.setHeader("Permissions-Policy", "geolocation=(), microphone=()");
+  next();
+});
 
 // Serve static files
 app.use(express.static(path.join(__dirname)));
@@ -19,11 +31,22 @@ mongoose.connect("mongodb+srv://nss:nss@nss.otjxidx.mongodb.net/?retryWrites=tru
   .then(() => console.log("✅ MongoDB connected"))
   .catch(err => console.error("❌ MongoDB error:", err));
 
+// OpenRouter API Configuration
+const OPENROUTER_API_KEY = "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";
+const OPENROUTER_API_URL = "https://openrouter.ai/api/v1/chat/completions";
+
 // User Schema
 const userSchema = new mongoose.Schema({
   name: String,
   email: { type: String, unique: true },
-  password: String
+  password: String,
+  aiHistory: [
+    {
+      prompt: String,
+      response: String,
+      timestamp: { type: Date, default: Date.now }
+    }
+  ]
 });
 const User = mongoose.model("User", userSchema);
 
@@ -35,7 +58,7 @@ app.use((req, res, next) => {
   next();
 });
 
-// AUTH ROUTES
+// ------------------- AUTH ROUTES -------------------
 app.post("/register", async (req, res) => {
   const { name, email, password } = req.body;
   try {
@@ -66,7 +89,7 @@ app.post("/login", async (req, res) => {
 app.get("/", (req, res) => res.sendFile(path.join(__dirname, "index.html")));
 app.get("/ayu.html", (req, res) => res.sendFile(path.join(__dirname, "ayu.html")));
 
-// SECURITY SCANNER ROUTES (unchanged)
+// ------------------- SECURITY SCANNER ROUTES -------------------
 app.get("/scan/ssl", async (req, res) => {
   let { url } = req.query;
   if (!url) return res.status(400).json({ error: "Missing ?url parameter" });
@@ -255,13 +278,117 @@ app.get("/scan/sensitive", async (req, res) => {
   }
 });
 
-// AI + SCORE ENGINE
-const PDFDocument = require("pdfkit");
-const fs = require("fs");
+// ------------------- AI ROUTES -------------------
+async function getAISolution(issue) {
+  try {
+    const response = await fetch(OPENROUTER_API_URL, {
+      method: "POST",
+      headers: {
+        "Authorization": `Bearer ${OPENROUTER_API_KEY}`,
+        "Content-Type": "application/json"
+      },
+      body: JSON.stringify({
+        model: "openai/gpt-4o-mini",
+        messages: [
+          { role: "system", content: "You are a security expert providing concise, actionable fixes." },
+          { role: "user", content: `Give a one-line security fix for this issue: ${issue}` }
+        ],
+        temperature: 0.2,
+        max_tokens: 100
+      })
+    });
 
-const OPENROUTER_API_KEY = "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";
+    if (!response.ok) {
+      const errText = await response.text();
+      console.error("OpenRouter API Error:", response.status, errText);
+      return `AI request failed: ${errText}`;
+    }
 
-// Helper: Calculate score and status
+    const data = await response.json();
+    return data.choices?.[0]?.message?.content || "No suggestion available.";
+  } catch (err) {
+    console.error("AI error:", err.message);
+    return "AI service unavailable.";
+  }
+}
+
+app.get("/ai-fix", async (req, res) => {
+  const { issue, email } = req.query;
+  if (!issue || !email) return res.status(400).json({ error: "Missing issue or email" });
+
+  const fix = await getAISolution(issue);
+
+  try {
+    await User.updateOne(
+      { email },
+      { $push: { aiHistory: { prompt: issue, response: fix } } }
+    );
+  } catch (err) {
+    console.error("Failed to save AI history:", err);
+  }
+
+  res.json({ issue, fix });
+});
+
+app.post("/chat-ai", async (req, res) => {
+  try {
+    const { email, prompt } = req.body;
+    if (!email || !prompt) {
+      return res.status(400).json({ error: "Missing email or prompt" });
+    }
+
+    const response = await fetch(OPENROUTER_API_URL, {
+      method: "POST",
+      headers: {
+        "Authorization": `Bearer ${OPENROUTER_API_KEY}`,
+        "Content-Type": "application/json"
+      },
+      body: JSON.stringify({
+        model: "openai/gpt-4o-mini",
+        messages: [
+          { role: "system", content: "You are an assistant that explains topics clearly in simple language." },
+          { role: "user", content: prompt }
+        ],
+        temperature: 0.7,
+        max_tokens: 300
+      })
+    });
+
+    if (!response.ok) {
+      const errorText = await response.text();
+      console.error("OpenRouter API Error:", errorText);
+      return res.status(500).json({ error: `AI service error: ${errorText}` });
+    }
+
+    const data = await response.json();
+    const aiReply = data.choices?.[0]?.message?.content || "No response from AI";
+
+    await User.updateOne(
+      { email },
+      { $push: { aiHistory: { prompt, response: aiReply } } }
+    );
+
+    res.json({ reply: aiReply });
+  } catch (err) {
+    console.error("Chat AI error:", err);
+    res.status(500).json({ error: "Failed to process AI request" });
+  }
+});
+
+app.get("/ai-history", async (req, res) => {
+  try {
+    const { email } = req.query;
+    if (!email) return res.status(400).json({ error: "Missing email" });
+
+    const user = await User.findOne({ email }, { aiHistory: 1, _id: 0 });
+    res.json(user?.aiHistory || []);
+  } catch (err) {
+    console.error("Failed to fetch AI history:", err);
+    res.status(500).json({ error: "Failed to load history" });
+  }
+});
+
+// ------------------- REPORT GENERATION -------------------
 function calculateScore(findings) {
   if (!findings || findings.length === 0) return { score: 100, status: "Safe 🟢" };
   const severity = findings.length * 10;
@@ -270,51 +397,6 @@ function calculateScore(findings) {
   return { score, status };
 }
 
-// Helper: Get AI suggestion (one-liner)
-async function getAISolution(issue) {
-  try {
-    const response = await fetch("https://openrouter.ai/api/v1/chat/completions", {
-      method: "POST",
-      headers: {
-        "Authorization": `Bearer ${OPENROUTER_API_KEY}`,
-        "Content-Type": "application/json"
-      },
-      body: JSON.stringify({
-        model: "openai/gpt-4o-mini",
-        messages: [{ role: "user", content: `Provide a concise, one-line fix for the web security or performance issue: "${issue}"` }],
-        max_tokens: 50 // Limit response length
-      })
-    });
-
-    if (!response.ok) {
-      console.error(`OpenRouter API error: Status ${response.status}, ${await response.text()}`);
-      return "AI service error";
-    }
-
-    const data = await response.json();
-    if (!data.choices || !data.choices[0]?.message?.content) {
-      console.error("OpenRouter API returned invalid response:", data);
-      return "No AI suggestion available";
-    }
-
-    return data.choices[0].message.content.trim();
-  } catch (err) {
-    console.error("AI suggestion fetch error:", err.message);
-    return "AI service unavailable";
-  }
-}
-
-// NEW ROUTE: AI fix per issue
-app.get("/ai-fix", async (req, res) => {
-  const { issue } = req.query;
-  if (!issue) return res.status(400).json({ error: "Missing ?issue parameter" });
-
-  const fix = await getAISolution(issue);
-  res.json({ issue, fix });
-});
-
-// Unified Report (unchanged)
-const QuickChart = require('quickchart-js');
 app.post("/generate-report", async (req, res) => {
   try {
     const { scanResults } = req.body;
@@ -358,19 +440,19 @@ app.post("/generate-report", async (req, res) => {
     try {
       const qc = new QuickChart();
       qc.setConfig({
-        type: 'bar',
+        type: "bar",
         data: {
           labels: sectionScores.map(s => s.scanType.toUpperCase()),
           datasets: [{
-            label: 'Security Score (%)',
+            label: "Security Score (%)",
             data: sectionScores.map(s => s.score),
-            backgroundColor: sectionScores.map(s => s.score >= 80 ? 'green' : s.score >= 50 ? 'orange' : 'red')
+            backgroundColor: sectionScores.map(s => s.score >= 80 ? "green" : s.score >= 50 ? "orange" : "red")
           }]
         }
-      }).setWidth(500).setHeight(300).setBackgroundColor('white');
+      }).setWidth(500).setHeight(300).setBackgroundColor("white");
 
       const chartImageBase64 = await qc.toDataUrl();
-      const chartBuffer = Buffer.from(chartImageBase64.split(",")[1], 'base64');
+      const chartBuffer = Buffer.from(chartImageBase64.split(",")[1], "base64");
       doc.image(chartBuffer, { align: "center", width: 400 });
     } catch (chartErr) {
       doc.fontSize(12).fillColor("red").text("⚠️ Unable to load chart. (Network issue)", { align: "center" });
@@ -406,7 +488,7 @@ app.post("/generate-report", async (req, res) => {
   }
 });
 
-// PERFORMANCE SCANNER ROUTES (unchanged)
+// ------------------- PERFORMANCE SCANNER ROUTES -------------------
 app.get("/perf/pageload", async (req, res) => {
   const { url } = req.query;
   if (!url) return res.status(400).json({ error: "Missing ?url" });
@@ -515,7 +597,7 @@ app.get("/perf/resources", async (req, res) => {
   }
 });
 
-// SEO SCANNER ROUTES (unchanged)
+// ------------------- SEO SCANNER ROUTES -------------------
 app.get("/seo/meta", async (req, res) => {
   try {
     let { url } = req.query;
@@ -675,7 +757,7 @@ app.get("/seo/crawl", async (req, res) => {
   }
 });
 
-// Import history routes (assuming script.js handles history)
+// Import history routes
 require("./script")(app);
 
 // Start server
