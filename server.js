@@ -6,47 +6,24 @@ const fetch = (...args) => import("node-fetch").then(({ default: fetch }) => fet
 const cheerio = require("cheerio");
 const http = require("http");
 const https = require("https");
-const PDFDocument = require("pdfkit");
-const QuickChart = require("quickchart-js");
 
 const app = express();
 app.use(express.json());
 app.use(cors());
 
-// Security Headers
-app.use((req, res, next) => {
-  res.setHeader("Strict-Transport-Security", "max-age=31536000; includeSubDomains");
-  res.setHeader("X-Frame-Options", "DENY");
-  res.setHeader("X-Content-Type-Options", "nosniff");
-  res.setHeader("Referrer-Policy", "no-referrer");
-  res.setHeader("Permissions-Policy", "geolocation=(), microphone=()");
-  next();
-});
-
-// Serve static files
+// ✅ Serve static files
 app.use(express.static(path.join(__dirname)));
 
-// MongoDB Connection
+// ✅ MongoDB Connection
 mongoose.connect("mongodb+srv://nss:nss@nss.otjxidx.mongodb.net/?retryWrites=true&w=majority&appName=nss")
   .then(() => console.log("✅ MongoDB connected"))
   .catch(err => console.error("❌ MongoDB error:", err));
 
-// OpenRouter API Configuration
-const OPENROUTER_API_KEY = "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";
-const OPENROUTER_API_URL = "https://openrouter.ai/api/v1/chat/completions";
-
-// User Schema
+// ✅ User Schema
 const userSchema = new mongoose.Schema({
   name: String,
   email: { type: String, unique: true },
-  password: String,
-  aiHistory: [
-    {
-      prompt: String,
-      response: String,
-      timestamp: { type: Date, default: Date.now }
-    }
-  ]
+  password: String
 });
 const User = mongoose.model("User", userSchema);
 
@@ -57,6 +34,9 @@ app.use((req, res, next) => {
   );
   next();
 });
+
+
+
 
 // ------------------- AUTH ROUTES -------------------
 app.post("/register", async (req, res) => {
@@ -85,11 +65,14 @@ app.post("/login", async (req, res) => {
   }
 });
 
-// Default routes
+// ✅ Default routes
 app.get("/", (req, res) => res.sendFile(path.join(__dirname, "index.html")));
 app.get("/ayu.html", (req, res) => res.sendFile(path.join(__dirname, "ayu.html")));
 
+
 // ------------------- SECURITY SCANNER ROUTES -------------------
+
+// 1. SSL Labs
 app.get("/scan/ssl", async (req, res) => {
   let { url } = req.query;
   if (!url) return res.status(400).json({ error: "Missing ?url parameter" });
@@ -113,6 +96,7 @@ app.get("/scan/ssl", async (req, res) => {
   }
 });
 
+// 2. Security Headers
 app.get("/scan/headers", async (req, res) => {
   let { url } = req.query;
   if (!url.startsWith("http")) url = "https://" + url;
@@ -134,6 +118,7 @@ app.get("/scan/headers", async (req, res) => {
   }
 });
 
+// 3. Outdated JS Libraries
 app.get("/scan/libs", async (req, res) => {
   let { url } = req.query;
   if (!url.startsWith("http")) url = "https://" + url;
@@ -189,6 +174,7 @@ app.get("/scan/libs", async (req, res) => {
   }
 });
 
+// 4. XSS Heuristic
 app.get("/scan/xss", async (req, res) => {
   try {
     const url = req.query.url;
@@ -205,6 +191,7 @@ app.get("/scan/xss", async (req, res) => {
   }
 });
 
+// 5. Ports + Admin Panels
 app.get("/scan/ports", async (req, res) => {
   const url = new URL(req.query.url.startsWith("http") ? req.query.url : "http://" + req.query.url);
   const host = url.hostname;
@@ -234,6 +221,7 @@ app.get("/scan/ports", async (req, res) => {
   res.json({ host, openPorts: open, adminPanels: panelHits });
 });
 
+// 6. CSRF Token Detection
 app.get("/scan/csrf", async (req, res) => {
   try {
     const url = req.query.url;
@@ -256,6 +244,7 @@ app.get("/scan/csrf", async (req, res) => {
   }
 });
 
+// 7. Sensitive Data Exposure
 app.get("/scan/sensitive", async (req, res) => {
   try {
     const url = req.query.url;
@@ -278,117 +267,15 @@ app.get("/scan/sensitive", async (req, res) => {
   }
 });
 
-// ------------------- AI ROUTES -------------------
-async function getAISolution(issue) {
-  try {
-    const response = await fetch(OPENROUTER_API_URL, {
-      method: "POST",
-      headers: {
-        "Authorization": `Bearer ${OPENROUTER_API_KEY}`,
-        "Content-Type": "application/json"
-      },
-      body: JSON.stringify({
-        model: "openai/gpt-4o-mini",
-        messages: [
-          { role: "system", content: "You are a security expert providing concise, actionable fixes." },
-          { role: "user", content: `Give a one-line security fix for this issue: ${issue}` }
-        ],
-        temperature: 0.2,
-        max_tokens: 100
-      })
-    });
 
-    if (!response.ok) {
-      const errText = await response.text();
-      console.error("OpenRouter API Error:", response.status, errText);
-      return `AI request failed: ${errText}`;
-    }
 
-    const data = await response.json();
-    return data.choices?.[0]?.message?.content || "No suggestion available.";
-  } catch (err) {
-    console.error("AI error:", err.message);
-    return "AI service unavailable.";
-  }
-}
+// ------------------- NEW: AI + SCORE ENGINE -------------------
+const PDFDocument = require("pdfkit");
+const fs = require("fs");
 
-app.get("/ai-fix", async (req, res) => {
-  const { issue, email } = req.query;
-  if (!issue || !email) return res.status(400).json({ error: "Missing issue or email" });
+const OPENROUTER_API_KEY = "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";
 
-  const fix = await getAISolution(issue);
-
-  try {
-    await User.updateOne(
-      { email },
-      { $push: { aiHistory: { prompt: issue, response: fix } } }
-    );
-  } catch (err) {
-    console.error("Failed to save AI history:", err);
-  }
-
-  res.json({ issue, fix });
-});
-
-app.post("/chat-ai", async (req, res) => {
-  try {
-    const { email, prompt } = req.body;
-    if (!email || !prompt) {
-      return res.status(400).json({ error: "Missing email or prompt" });
-    }
-
-    const response = await fetch(OPENROUTER_API_URL, {
-      method: "POST",
-      headers: {
-        "Authorization": `Bearer ${OPENROUTER_API_KEY}`,
-        "Content-Type": "application/json"
-      },
-      body: JSON.stringify({
-        model: "openai/gpt-4o-mini",
-        messages: [
-          { role: "system", content: "You are an assistant that explains topics clearly in simple language." },
-          { role: "user", content: prompt }
-        ],
-        temperature: 0.7,
-        max_tokens: 300
-      })
-    });
-
-    if (!response.ok) {
-      const errorText = await response.text();
-      console.error("OpenRouter API Error:", errorText);
-      return res.status(500).json({ error: `AI service error: ${errorText}` });
-    }
-
-    const data = await response.json();
-    const aiReply = data.choices?.[0]?.message?.content || "No response from AI";
-
-    await User.updateOne(
-      { email },
-      { $push: { aiHistory: { prompt, response: aiReply } } }
-    );
-
-    res.json({ reply: aiReply });
-  } catch (err) {
-    console.error("Chat AI error:", err);
-    res.status(500).json({ error: "Failed to process AI request" });
-  }
-});
-
-app.get("/ai-history", async (req, res) => {
-  try {
-    const { email } = req.query;
-    if (!email) return res.status(400).json({ error: "Missing email" });
-
-    const user = await User.findOne({ email }, { aiHistory: 1, _id: 0 });
-    res.json(user?.aiHistory || []);
-  } catch (err) {
-    console.error("Failed to fetch AI history:", err);
-    res.status(500).json({ error: "Failed to load history" });
-  }
-});
-
-// ------------------- REPORT GENERATION -------------------
+// Helper: Calculate score and status
 function calculateScore(findings) {
   if (!findings || findings.length === 0) return { score: 100, status: "Safe 🟢" };
   const severity = findings.length * 10;
@@ -397,6 +284,38 @@ function calculateScore(findings) {
   return { score, status };
 }
 
+// Helper: Get AI suggestion (one-liner)
+async function getAISolution(issue) {
+  try {
+    const response = await fetch("https://openrouter.ai/api/v1/chat/completions", {
+      method: "POST",
+      headers: {
+        "Authorization": `Bearer ${OPENROUTER_API_KEY}`,
+        "Content-Type": "application/json"
+      },
+      body: JSON.stringify({
+        model: "openai/gpt-4o-mini",
+        messages: [{ role: "user", content: `Give a one-line fix for: ${issue}` }]
+      })
+    });
+    const data = await response.json();
+    return data.choices?.[0]?.message?.content || "No AI suggestion";
+  } catch (err) {
+    return "AI service unavailable";
+  }
+}
+
+// NEW ROUTE: AI fix per issue
+app.get("/ai-fix", async (req, res) => {
+  const { issue } = req.query;
+  if (!issue) return res.status(400).json({ error: "Missing ?issue" });
+  const fix = await getAISolution(issue);
+  res.json({ issue, fix });
+});
+
+
+// ------------------- NEW ROUTE: Unified Report -------------------
+const QuickChart = require('quickchart-js'); // Install: npm i quickchart-js
 app.post("/generate-report", async (req, res) => {
   try {
     const { scanResults } = req.body;
@@ -406,11 +325,13 @@ app.post("/generate-report", async (req, res) => {
     const doc = new PDFDocument({ margin: 30 });
     doc.pipe(res);
 
+    // === Header ===
     doc.fontSize(26).fillColor("#4B0082").text("🔐 Security Audit Report", { align: "center" });
     doc.moveDown(0.5);
     doc.fontSize(12).fillColor("#444").text(`Generated on: ${new Date().toLocaleString()}`, { align: "center" });
     doc.moveDown(2);
 
+    // === Compute scores ===
     let totalScore = 0;
     const sectionScores = [];
     for (const [scanType, findings] of Object.entries(scanResults)) {
@@ -421,6 +342,7 @@ app.post("/generate-report", async (req, res) => {
     }
     const overallScore = Math.round(totalScore / sectionScores.length);
 
+    // === Summary ===
     doc.fontSize(18).fillColor("#000").text("📌 Summary", { underline: true });
     doc.moveDown();
     doc.fontSize(14).fillColor(overallScore >= 80 ? "green" : overallScore >= 50 ? "orange" : "red")
@@ -437,22 +359,24 @@ app.post("/generate-report", async (req, res) => {
     }
     doc.moveDown(2);
 
+    // === Add Chart ===
     try {
+      const QuickChart = require('quickchart-js');
       const qc = new QuickChart();
       qc.setConfig({
-        type: "bar",
+        type: 'bar',
         data: {
           labels: sectionScores.map(s => s.scanType.toUpperCase()),
           datasets: [{
-            label: "Security Score (%)",
+            label: 'Security Score (%)',
             data: sectionScores.map(s => s.score),
-            backgroundColor: sectionScores.map(s => s.score >= 80 ? "green" : s.score >= 50 ? "orange" : "red")
+            backgroundColor: sectionScores.map(s => s.score >= 80 ? 'green' : s.score >= 50 ? 'orange' : 'red')
           }]
         }
-      }).setWidth(500).setHeight(300).setBackgroundColor("white");
+      }).setWidth(500).setHeight(300).setBackgroundColor('white');
 
       const chartImageBase64 = await qc.toDataUrl();
-      const chartBuffer = Buffer.from(chartImageBase64.split(",")[1], "base64");
+      const chartBuffer = Buffer.from(chartImageBase64.split(",")[1], 'base64');
       doc.image(chartBuffer, { align: "center", width: 400 });
     } catch (chartErr) {
       doc.fontSize(12).fillColor("red").text("⚠️ Unable to load chart. (Network issue)", { align: "center" });
@@ -460,6 +384,7 @@ app.post("/generate-report", async (req, res) => {
 
     doc.moveDown(2);
 
+    // === Detailed Sections ===
     for (const [scanType, findings] of Object.entries(scanResults)) {
       const severity = findings.length * 10;
       const score = Math.max(0, 100 - severity);
@@ -487,6 +412,9 @@ app.post("/generate-report", async (req, res) => {
     }
   }
 });
+
+
+
 
 // ------------------- PERFORMANCE SCANNER ROUTES -------------------
 app.get("/perf/pageload", async (req, res) => {
@@ -534,7 +462,7 @@ app.get("/perf/images", async (req, res) => {
     });
 
     const results = [];
-    for (let src of images.slice(0, 10)) {
+    for (let src of images.slice(0, 10)) { // limit 10 for speed
       try {
         const imgRes = await fetch(src.startsWith("http") ? src : new URL(src, url).href, { method: "HEAD" });
         const size = imgRes.headers.get("content-length") || "unknown";
@@ -597,7 +525,7 @@ app.get("/perf/resources", async (req, res) => {
   }
 });
 
-// ------------------- SEO SCANNER ROUTES -------------------
+// 1. Meta Tags
 app.get("/seo/meta", async (req, res) => {
   try {
     let { url } = req.query;
@@ -614,6 +542,7 @@ app.get("/seo/meta", async (req, res) => {
   }
 });
 
+// 2. Keyword Density
 app.get("/seo/keywords", async (req, res) => {
   try {
     let { url } = req.query;
@@ -631,6 +560,7 @@ app.get("/seo/keywords", async (req, res) => {
   }
 });
 
+// 3. Heading Structure
 app.get("/seo/headings", async (req, res) => {
   try {
     let { url } = req.query;
@@ -648,6 +578,7 @@ app.get("/seo/headings", async (req, res) => {
   }
 });
 
+// 4. URL Structure
 app.get("/seo/url", async (req, res) => {
   try {
     let { url } = req.query;
@@ -660,6 +591,7 @@ app.get("/seo/url", async (req, res) => {
   }
 });
 
+// 5. Mobile Friendliness (viewport check)
 app.get("/seo/mobile", async (req, res) => {
   try {
     let { url } = req.query;
@@ -676,6 +608,7 @@ app.get("/seo/mobile", async (req, res) => {
   }
 });
 
+// 6. Broken Links
 app.get("/seo/broken", async (req, res) => {
   try {
     let { url } = req.query;
@@ -685,7 +618,7 @@ app.get("/seo/broken", async (req, res) => {
     const $ = cheerio.load(html);
     let links = $("a[href]").map((i, el) => $(el).attr("href")).get();
     let issues = [];
-    for (let link of links.slice(0, 10)) {
+    for (let link of links.slice(0, 10)) { // limit 10
       try {
         const r = await fetch(link.startsWith("http") ? link : new URL(link, url).href, { method: "HEAD" });
         if (r.status >= 400) issues.push(`Broken link: ${link}`);
@@ -699,6 +632,7 @@ app.get("/seo/broken", async (req, res) => {
   }
 });
 
+// 7. Image Optimization
 app.get("/seo/images", async (req, res) => {
   try {
     let { url } = req.query;
@@ -716,6 +650,7 @@ app.get("/seo/images", async (req, res) => {
   }
 });
 
+// 8. Sitemap & Robots.txt
 app.get("/seo/sitemap", async (req, res) => {
   try {
     let { url } = req.query;
@@ -736,14 +671,17 @@ app.get("/seo/sitemap", async (req, res) => {
   }
 });
 
+// 9. Backlink Profile (stub, since needs external APIs)
 app.get("/seo/backlinks", async (req, res) => {
   try {
+    // Normally you’d query Google Search Console / Ahrefs API etc.
     res.json({ issues: ["Backlink data requires external SEO API integration"] });
   } catch {
     res.status(500).json({ error: "Backlink check failed" });
   }
 });
 
+// 10. Crawl Errors (basic: fetch homepage status)
 app.get("/seo/crawl", async (req, res) => {
   try {
     let { url } = req.query;
@@ -757,9 +695,12 @@ app.get("/seo/crawl", async (req, res) => {
   }
 });
 
+
 // Import history routes
 require("./script")(app);
 
-// Start server
+
+// ✅ Start server
 const PORT = process.env.PORT || 3000;
 app.listen(PORT, () => console.log(`🚀 Server running on port ${PORT}`));
+
