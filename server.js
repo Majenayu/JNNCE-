@@ -273,7 +273,7 @@ app.get("/scan/sensitive", async (req, res) => {
 const PDFDocument = require("pdfkit");
 const fs = require("fs");
 
-const OPENROUTER_API_KEY = "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";
+const OPENROUTER_API_KEY = "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";
 
 // Helper: Calculate score and status
 function calculateScore(findings) {
