@@ -192,20 +192,29 @@ function renderScore(findings) {
 // Fetch AI fix from backend
 async function getAIFix(issue) {
   try {
-    const r = await fetch(`/ai-fix?issue=${encodeURIComponent(issue)}`);
-    const d = await r.json();
-    return `<span class="ai-fix">💡 ${d.fix}</span>`;
-  } catch {
-    return "";
+    const response = await fetch(`/ai-fix?issue=${encodeURIComponent(issue)}`);
+    if (!response.ok) {
+      console.error(`AI fix fetch failed: Status ${response.status}, ${await response.text()}`);
+      return `<span class="ai-fix">💡 Failed to fetch AI suggestion (Status ${response.status})</span>`;
+    }
+    const data = await response.json();
+    if (!data.fix || data.fix.includes("No AI suggestion") || data.fix.includes("AI service unavailable")) {
+      console.warn(`AI fix response for "${issue}": ${data.fix}`);
+      return `<span class="ai-fix">💡 ${data.fix || "No suggestion available"}</span>`;
+    }
+    return `<span class="ai-fix">💡 ${data.fix}</span>`;
+  } catch (err) {
+    console.error(`AI fix error for "${issue}":`, err.message);
+    return `<span class="ai-fix">💡 AI service unavailable</span>`;
   }
 }
 
 async function aiExplain(title, issues) {
   if (!issues.length) return `<p>✅ ${title} looks good.</p>`;
   let html = "<ul>";
-  for (const i of issues) {
-    const fix = await getAIFix(i);
-    html += `<li>⚠ ${i} ${fix}</li>`;
+  for (const issue of issues) {
+    const fix = await getAIFix(issue);
+    html += `<li>⚠ ${issue} ${fix}</li>`;
   }
   html += "</ul>";
   return html;
@@ -457,7 +466,7 @@ function generateFinalAI() {
   document.getElementById("aiFinal").innerHTML = `<h2>🤖 Overall AI Feedback</h2><p>${msg}</p>`;
 }
 
-// ---------- PDF REPORTS ----------
+// PDF REPORTS (unchanged)
 async function generateReport() {
   if (!Object.keys(scanResults).length) return alert("Run security scans first!");
   const res = await fetch("/generate-report", {
@@ -618,6 +627,7 @@ function renderSEOResults() {
 // Load history whenever page opens
 window.addEventListener("DOMContentLoaded", loadHistory);
 
+// Rest of the frontend code (chatbot, cobweb animation, etc.) remains unchanged
 </script>
 
 <!-- AI Chatbot -->
