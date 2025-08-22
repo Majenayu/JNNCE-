@@ -69,7 +69,9 @@ app.get("/", (req, res) => res.sendFile(path.join(__dirname, "index.html")));
 app.get("/ayu.html", (req, res) => res.sendFile(path.join(__dirname, "ayu.html")));
 
 // ------------------- SECURITY SCANNER ROUTES -------------------
-app.get("/scan/ssl", async (req, res) => {
+
+// SSL Scan
+app.get("/scan/ssl", blockFakeURLs, async (req, res) => {
   let { url } = req.query;
   if (!url) return res.status(400).json({ error: "Missing ?url parameter" });
   url = url.replace(/^https?:\/\//, "").replace(/\/$/, "");
@@ -92,7 +94,8 @@ app.get("/scan/ssl", async (req, res) => {
   }
 });
 
-app.get("/scan/headers", async (req, res) => {
+// Security Headers
+app.get("/scan/headers", blockFakeURLs, async (req, res) => {
   let { url } = req.query;
   if (!url.startsWith("http")) url = "https://" + url;
   try {
@@ -113,7 +116,8 @@ app.get("/scan/headers", async (req, res) => {
   }
 });
 
-app.get("/scan/libs", async (req, res) => {
+// JS Libraries
+app.get("/scan/libs", blockFakeURLs, async (req, res) => {
   let { url } = req.query;
   if (!url.startsWith("http")) url = "https://" + url;
   try {
@@ -146,7 +150,7 @@ app.get("/scan/libs", async (req, res) => {
         try {
           const ossRes = await fetch("https://ossindex.sonatype.org/api/v3/component-report", {
             method: "POST",
-            headers: { "Content-Type": "application/vnd.ossindex.component-report-request+json" },
+            headers: { "Content-Type": "application/vnd.ossindex.component-report+json" },
             body: JSON.stringify({ coordinates: [`pkg:npm/${libName}@${libVersion}`] })
           });
           const ossData = await ossRes.json();
@@ -168,7 +172,8 @@ app.get("/scan/libs", async (req, res) => {
   }
 });
 
-app.get("/scan/xss", async (req, res) => {
+// XSS
+app.get("/scan/xss", blockFakeURLs, async (req, res) => {
   try {
     const url = req.query.url;
     const response = await fetch(url);
@@ -184,7 +189,8 @@ app.get("/scan/xss", async (req, res) => {
   }
 });
 
-app.get("/scan/ports", async (req, res) => {
+// Port Scan
+app.get("/scan/ports", blockFakeURLs, async (req, res) => {
   const url = new URL(req.query.url.startsWith("http") ? req.query.url : "http://" + req.query.url);
   const host = url.hostname;
   const ports = [80, 443, 8080, 8443, 3000, 5000];
@@ -213,7 +219,8 @@ app.get("/scan/ports", async (req, res) => {
   res.json({ host, openPorts: open, adminPanels: panelHits });
 });
 
-app.get("/scan/csrf", async (req, res) => {
+// CSRF
+app.get("/scan/csrf", blockFakeURLs, async (req, res) => {
   try {
     const url = req.query.url;
     const response = await fetch(url);
@@ -235,7 +242,8 @@ app.get("/scan/csrf", async (req, res) => {
   }
 });
 
-app.get("/scan/sensitive", async (req, res) => {
+// Sensitive Data
+app.get("/scan/sensitive", blockFakeURLs, async (req, res) => {
   try {
     const url = req.query.url;
     const response = await fetch(url);
@@ -256,6 +264,7 @@ app.get("/scan/sensitive", async (req, res) => {
     res.status(500).json({ error: "Failed sensitive scan" });
   }
 });
+
 
 // ------------------- AI + SCORE ENGINE -------------------
 const OPENROUTER_API_KEY = "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";
