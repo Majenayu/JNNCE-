@@ -23,8 +23,16 @@ mongoose.connect("mongodb+srv://nss:nss@nss.otjxidx.mongodb.net/?retryWrites=tru
 const userSchema = new mongoose.Schema({
   name: String,
   email: { type: String, unique: true },
-  password: String
+  password: String,
+  aiHistory: [
+    {
+      prompt: String,
+      response: String,
+      timestamp: { type: Date, default: Date.now }
+    }
+  ]
 });
+
 const User = mongoose.model("User", userSchema);
 
 app.use((req, res, next) => {
@@ -696,6 +704,59 @@ app.get("/seo/crawl", async (req, res) => {
 });
 
 
+
+app.post("/ai-chat", async (req, res) => {
+  try {
+    const { prompt, username } = req.body;
+    if (!prompt || !username) return res.status(400).json({ error: "Missing prompt or username" });
+
+    // AI Response from OpenRouter
+    const response = await fetch("https://openrouter.ai/api/v1/chat/completions", {
+      method: "POST",
+      headers: {
+        "Authorization": `Bearer ${OPENROUTER_API_KEY}`,
+        "Content-Type": "application/json"
+      },
+      body: JSON.stringify({
+        model: "openai/gpt-4o-mini",
+        messages: [
+          { role: "system", content: "You are an assistant that explains topics clearly." },
+          { role: "user", content: prompt }
+        ]
+      })
+    });
+
+    const data = await response.json();
+    const reply = data.choices?.[0]?.message?.content || "No response from AI";
+
+    // Save AI history to user document
+    await User.updateOne(
+      { name: username },
+      { $push: { aiHistory: { prompt, response: reply } } }
+    );
+
+    res.json({ reply });
+  } catch (err) {
+    console.error("AI Chat error:", err);
+    res.status(500).json({ error: "Failed to get AI response" });
+  }
+});
+
+
+app.get("/ai-history", async (req, res) => {
+  const { username } = req.query;
+  if (!username) return res.status(400).json({ error: "Missing username" });
+
+  try {
+    const user = await User.findOne({ name: username }, { aiHistory: 1, _id: 0 });
+    res.json(user?.aiHistory || []);
+  } catch (err) {
+    console.error("AI history error:", err);
+    res.status(500).json({ error: "Failed to load history" });
+  }
+});
+
+
 // Import history routes
 require("./script")(app);
 
@@ -703,4 +764,3 @@ require("./script")(app);
 // ✅ Start server
 const PORT = process.env.PORT || 3000;
 app.listen(PORT, () => console.log(`🚀 Server running on port ${PORT}`));
-
