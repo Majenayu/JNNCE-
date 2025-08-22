@@ -743,6 +743,7 @@ app.post("/ai-chat", async (req, res) => {
 });
 
 
+
 app.get("/ai-history", async (req, res) => {
   const { username } = req.query;
   if (!username) return res.status(400).json({ error: "Missing username" });
@@ -755,6 +756,41 @@ app.get("/ai-history", async (req, res) => {
     res.status(500).json({ error: "Failed to load history" });
   }
 });
+async function getAISolution(issue) {
+  try {
+    const response = await fetch("https://openrouter.ai/api/v1/chat/completions", {
+      method: "POST",
+      headers: {
+        "Authorization": `Bearer ${OPENROUTER_API_KEY}`,
+        "Content-Type": "application/json",
+        "HTTP-Referer": "http://localhost:3000",
+        "X-Title": "Security Dashboard"
+      },
+      body: JSON.stringify({
+        model: "openai/gpt-4o-mini", // confirm available model
+        messages: [
+          { role: "system", content: "You are a security expert providing concise, actionable fixes." },
+          { role: "user", content: `Give a one-line security fix for this issue: ${issue}` }
+        ],
+        temperature: 0.2,
+        max_tokens: 100
+      })
+    });
+
+    if (!response.ok) {
+      const errText = await response.text();
+      console.error("OpenRouter API Error:", errText);
+      return "AI request failed. Check server logs.";
+    }
+
+    const data = await response.json();
+    return data.choices?.[0]?.message?.content || "No suggestion available.";
+  } catch (err) {
+    console.error("AI error:", err);
+    return "AI service unavailable.";
+  }
+}
+
 
 
 // Import history routes
