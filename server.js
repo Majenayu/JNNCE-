@@ -713,6 +713,7 @@ app.get("/seo/crawl", async (req, res) => {
 
 
 // Middleware
+// Middleware
 async function blockFakeURLs(req, res, next) {
   try {
     let { url } = req.query;
@@ -734,21 +735,10 @@ async function blockFakeURLs(req, res, next) {
   }
 }
 
-// Apply to all scan routes
-app.get("/scan/ssl", blockFakeURLs, async (req, res) => { ... });
-app.get("/scan/headers", blockFakeURLs, async (req, res) => { ... });
-app.get("/scan/libs", blockFakeURLs, async (req, res) => { ... });
-app.get("/scan/xss", blockFakeURLs, async (req, res) => { ... });
-app.get("/scan/ports", blockFakeURLs, async (req, res) => { ... });
-app.get("/scan/csrf", blockFakeURLs, async (req, res) => { ... });
-app.get("/scan/sensitive", blockFakeURLs, async (req, res) => { ... });
-
-app.get("/perf/*", blockFakeURLs, async (req, res) => { ... });
-app.get("/seo/*", blockFakeURLs, async (req, res) => { ... });
-
 // Import history routes
 require("./script")(app);
 
 // ✅ Start server
 const PORT = process.env.PORT || 3000;
 app.listen(PORT, () => console.log(`🚀 Server running on port ${PORT}`));
+
