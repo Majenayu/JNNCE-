@@ -11,6 +11,16 @@ const app = express();
 app.use(express.json());
 app.use(cors());
 
+// Security Headers
+app.use((req, res, next) => {
+  res.setHeader("Strict-Transport-Security", "max-age=31536000; includeSubDomains");
+  res.setHeader("X-Frame-Options", "DENY");
+  res.setHeader("X-Content-Type-Options", "nosniff");
+  res.setHeader("Referrer-Policy", "no-referrer");
+  res.setHeader("Permissions-Policy", "geolocation=(), microphone=()");
+  next();
+});
+
 // ✅ Serve static files
 app.use(express.static(path.join(__dirname)));
 
@@ -18,6 +28,10 @@ app.use(express.static(path.join(__dirname)));
 mongoose.connect("mongodb+srv://nss:nss@nss.otjxidx.mongodb.net/?retryWrites=true&w=majority&appName=nss")
   .then(() => console.log("✅ MongoDB connected"))
   .catch(err => console.error("❌ MongoDB error:", err));
+
+  const AI_CHAT_API_KEY = "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";
+const AI_CHAT_API_URL = "https://openrouter.ai/api/v1/chat/completions";
+
 
 // ✅ User Schema
 const userSchema = new mongoose.Schema({
@@ -32,6 +46,7 @@ const userSchema = new mongoose.Schema({
     }
   ]
 });
+
 
 const User = mongoose.model("User", userSchema);
 
@@ -705,57 +720,70 @@ app.get("/seo/crawl", async (req, res) => {
 
 
 
-app.post("/ai-chat", async (req, res) => {
+app.post("/chat-ai", async (req, res) => {
   try {
-    const { prompt, username } = req.body;
-    if (!prompt || !username) return res.status(400).json({ error: "Missing prompt or username" });
+    const { email, prompt } = req.body;
+    if (!email || !prompt) {
+      return res.status(400).json({ error: "Missing email or prompt" });
+    }
 
-    // AI Response from OpenRouter
-    const response = await fetch("https://openrouter.ai/api/v1/chat/completions", {
+    // Call OpenRouter API
+    const response = await fetch(AI_CHAT_API_URL, {
       method: "POST",
       headers: {
-        "Authorization": `Bearer ${OPENROUTER_API_KEY}`,
-        "Content-Type": "application/json"
+        "Authorization": `Bearer ${AI_CHAT_API_KEY}`,
+        "Content-Type": "application/json",
+        "HTTP-Referer": "http://localhost:3000",
+        "X-Title": "AI Chatbot"
       },
       body: JSON.stringify({
         model: "openai/gpt-4o-mini",
         messages: [
-          { role: "system", content: "You are an assistant that explains topics clearly." },
+          { role: "system", content: "You are an assistant that explains topics clearly in simple language." },
           { role: "user", content: prompt }
-        ]
+        ],
+        temperature: 0.7,
+        max_tokens: 300
       })
     });
 
-    const data = await response.json();
-    const reply = data.choices?.[0]?.message?.content || "No response from AI";
+    if (!response.ok) {
+      const errorText = await response.text();
+      console.error("AI API Error:", errorText);
+      return res.status(500).json({ error: "AI service error" });
+    }
 
-    // Save AI history to user document
+    const data = await response.json();
+    const aiReply = data.choices?.[0]?.message?.content || "No response from AI";
+
+    // Save conversation to user document
     await User.updateOne(
-      { name: username },
-      { $push: { aiHistory: { prompt, response: reply } } }
+      { email },
+      { $push: { aiHistory: { prompt, response: aiReply } } }
     );
 
-    res.json({ reply });
+    res.json({ reply: aiReply });
   } catch (err) {
-    console.error("AI Chat error:", err);
-    res.status(500).json({ error: "Failed to get AI response" });
+    console.error("Chat AI error:", err);
+    res.status(500).json({ error: "Failed to process AI request" });
   }
 });
 
 
 
 app.get("/ai-history", async (req, res) => {
-  const { username } = req.query;
-  if (!username) return res.status(400).json({ error: "Missing username" });
-
   try {
-    const user = await User.findOne({ name: username }, { aiHistory: 1, _id: 0 });
+    const { email } = req.query;
+    if (!email) return res.status(400).json({ error: "Missing email" });
+
+    const user = await User.findOne({ email }, { aiHistory: 1, _id: 0 });
     res.json(user?.aiHistory || []);
   } catch (err) {
-    console.error("AI history error:", err);
+    console.error("Failed to fetch AI history:", err);
     res.status(500).json({ error: "Failed to load history" });
   }
 });
+
 async function getAISolution(issue) {
   try {
     const response = await fetch("https://openrouter.ai/api/v1/chat/completions", {
