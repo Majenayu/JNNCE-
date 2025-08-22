@@ -705,6 +705,47 @@ app.get("/seo/crawl", async (req, res) => {
 // Import history routes
 require("./script")(app);
 
+// ✅ Fake URL Schema/Collection
+const fakeSchema = new mongoose.Schema({
+  url: { type: String, unique: true },
+  issues: Number,
+  timestamp: { type: Date, default: Date.now }
+});
+const Fake = mongoose.model("Fake", fakeSchema);
+
+// Save fake URL if issues > 10
+app.post("/save-fake", async (req, res) => {
+  try {
+    const { url, issues } = req.body;
+    if (!url || issues <= 10) {
+      return res.status(400).json({ error: "Not enough issues to mark as fake" });
+    }
+
+    await Fake.updateOne(
+      { url },
+      { $set: { url, issues, timestamp: new Date() } },
+      { upsert: true }
+    );
+
+    res.json({ message: "Fake URL saved" });
+  } catch (err) {
+    console.error("❌ Error saving fake url:", err);
+    res.status(500).json({ error: "Failed to save fake url" });
+  }
+});
+
+// Fetch all fake URLs
+app.get("/fake-urls", async (req, res) => {
+  try {
+    const urls = await Fake.find({}).sort({ timestamp: -1 }).lean();
+    res.json(urls);
+  } catch (err) {
+    console.error("❌ Error fetching fake urls:", err);
+    res.status(500).json({ error: "Failed to fetch fake urls" });
+  }
+});
+
+
 // ✅ Start server
 const PORT = process.env.PORT || 3000;
 app.listen(PORT, () => console.log(`🚀 Server running on port ${PORT}`));
