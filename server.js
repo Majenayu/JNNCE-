@@ -791,6 +791,25 @@ async function getAISolution(issue) {
   }
 }
 
+app.get("/ai-fix", async (req, res) => {
+  const { issue, email } = req.query;
+  if (!issue || !email) return res.status(400).json({ error: "Missing issue or email" });
+
+  const fix = await getAISolution(issue);
+
+  try {
+    await User.updateOne(
+      { email },
+      { $push: { aiHistory: { prompt: issue, response: fix } } }
+    );
+  } catch (err) {
+    console.error("Failed to save AI history:", err);
+  }
+
+  res.json({ issue, fix });
+});
+
+
 
 
 // Import history routes
