@@ -80,6 +80,74 @@
     .ml-0{margin-left:0}
     .ml-128 { margin-left: 32rem; } /* 2 sidebars (16rem each) */
 
+/* ===================== */
+/* 🎭 Fake Sidebar Styles */
+/* ===================== */
+#fakeSidebar {
+  position: fixed;
+  top: 0;
+  right: 0; /* anchored to right */
+  height: 100%;
+  width: 16rem; /* 64 */
+  background: rgba(25, 25, 60, 0.9);
+  color: #fff;
+  backdrop-filter: blur(14px);
+  border-left: 1px solid rgba(255, 255, 255, 0.12);
+  transform: translateX(100%); /* start hidden on right */
+  transition: transform 0.3s ease;
+  z-index: 60;
+  box-shadow: -6px 0 20px rgba(0, 0, 0, 0.45);
+  border-radius: 0;
+}
+
+#fakeSidebar.active {
+  transform: translateX(0); /* slide into view */
+}
+
+/* Fake Sidebar header */
+#fakeSidebar .header {
+  padding: 1rem;
+  border-bottom: 1px solid rgba(255, 255, 255, 0.14);
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+}
+
+/* Close button */
+#fakeSidebar button {
+  background: rgba(255, 255, 255, 0.12);
+  color: #fff;
+  padding: 6px 10px;
+  border-radius: 6px;
+  border: none;
+  cursor: pointer;
+  transition: background 0.2s ease;
+}
+#fakeSidebar button:hover {
+  background: rgba(255, 255, 255, 0.25);
+}
+
+/* Fake list area */
+#fakeList {
+  height: calc(100% - 60px);
+  overflow-y: auto;
+  padding: 1rem;
+  font-size: 0.9rem;
+}
+#fakeList .item {
+  padding: 0.5rem;
+  margin-bottom: 0.75rem;
+  border-radius: 6px;
+  background: rgba(255, 255, 255, 0.08);
+  cursor: pointer;
+  transition: background 0.2s ease;
+}
+#fakeList .item:hover {
+  background: rgba(255, 255, 255, 0.18);
+}
+
+
+
     #urlInput{
       display:block;
       width:min(600px,90%);
@@ -90,6 +158,12 @@
       box-shadow:0 6px 18px rgba(0,0,0,0.12);
     }
     #urlInput::placeholder{color:#666 !important;}
+    /* Already defined */
+.-translate-x-full { transform: translateX(-100%); }
+
+/* ✅ Add this for right sidebar */
+.translate-x-full { transform: translateX(100%); }
+
   </style>
 </head>
 <body>
@@ -114,26 +188,22 @@
 </button>
 
   <!-- Fake URLs Sidebar -->
-<!-- Fake URLs Sidebar (placed beside History on the left) -->
-<div id="fakeSidebar" 
-  class="fixed top-0 right-0 h-full w-64 bg-gray-900 text-white transform translate-x-full transition-transform duration-300 z-50">
-  <div class="p-4 border-b border-gray-700 flex justify-between items-center">
-    <h2 class="text-lg font-bold">Fake URLs</h2>
-    <button onclick="toggleFakeSidebar()" 
-      class="bg-gray-800 text-white px-3 py-2 rounded-lg shadow hover:bg-gray-700">
-      ✖
-    </button>
-  </div>
-  <div id="fakeList" class="overflow-y-auto h-[calc(100%-60px)] p-4 space-y-3 text-sm"></div>
-</div>
-
-</div>
-
-<!-- Sidebar Toggle Button -->
+<!-- Fake URLs Sidebar -->
+ <!-- Fake Sidebar Toggle Button -->
 <button id="fakeToggleBtn" onclick="toggleFakeSidebar()" 
   class="fixed top-4 right-4 z-[9999] bg-gray-800 text-white px-3 py-2 rounded-lg shadow hover:bg-gray-700">
-  🚫
+  ⚠
 </button>
+
+<div id="fakeSidebar">
+  <div class="header">
+    <h2 class="text-lg font-bold">Fake URLs</h2>
+    <button onclick="toggleFakeSidebar()">✖</button>
+  </div>
+  <div id="fakeList"></div>
+</div>
+
+
 
   
 <div id="mainContent" class="transition-all duration-300 ml-0"></div>
@@ -819,17 +889,15 @@ function addMessage(sender, text) {
 
 function toggleFakeSidebar() {
   const sidebar = document.getElementById("fakeSidebar");
-  const btn = document.getElementById("fakeToggleBtn");
-
-  if (sidebar.classList.contains("translate-x-full")) {
-    sidebar.classList.remove("translate-x-full");  // show sidebar (slide in from right)
-    if (btn) btn.style.display = "none";
+  sidebar.classList.toggle("active");
+  if (sidebar.classList.contains("active")) {
     loadFakeList();
-  } else {
-    sidebar.classList.add("translate-x-full");  // hide sidebar (slide out to right)
-    if (btn) btn.style.display = "";
   }
 }
+
+
+
+
 
 
 
