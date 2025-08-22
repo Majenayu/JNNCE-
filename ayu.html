@@ -111,27 +111,6 @@
   ☰
 </button>
 
-  <!-- Fake Dashboard Sidebar -->
-<div id="fakeSidebar" class="fixed top-0 right-0 h-full w-64 bg-gray-900 text-white transform translate-x-full transition-transform duration-300 z-50">
-  <div class="p-4 border-b border-gray-700 flex justify-between items-center">
-    <h2 class="text-lg font-bold">⚠️ Fake Dashboard</h2>
-    <button onclick="toggleFakeSidebar()" 
-      class="absolute top-4 left-4 z-[9999] bg-gray-800 text-white px-3 py-2 rounded-lg shadow hover:bg-gray-700">
-      ✖
-    </button>
-  </div>
-  <div id="fakeList" class="overflow-y-auto h-[calc(100%-60px)] p-4 space-y-3 text-sm">
-    <!-- Fake entries will load here -->
-  </div>
-</div>
-
-<!-- Sidebar Toggle Button -->
-<button id="fakeToggleBtn" onclick="toggleFakeSidebar()" 
-  class="fixed top-4 right-4 z-[9999] bg-gray-800 text-white px-3 py-2 rounded-lg shadow hover:bg-gray-700">
-  ⚠️
-</button>
-
-
 <div id="mainContent" class="transition-all duration-300 ml-0"></div>
 
   <div id="loader" style="display:none;">
@@ -209,25 +188,6 @@ function renderScore(findings) {
   let status = score >= 80 ? `<span class='ok'>🟢 Good</span>` : score >= 50 ? `<span class='warn'>🟡 Fair</span>` : `<span class='bad'>🔴 Poor</span>`;
   return `<div class="score-box">Score: ${score}% | Status: ${status}</div>`;
 }
-
-
-  // Middleware: Block fake URLs
-// Middleware
-
-
-// Apply to all scan routes
-app.get("/scan/ssl", blockFakeURLs, async (req, res) => { ... });
-app.get("/scan/headers", blockFakeURLs, async (req, res) => { ... });
-app.get("/scan/libs", blockFakeURLs, async (req, res) => { ... });
-app.get("/scan/xss", blockFakeURLs, async (req, res) => { ... });
-app.get("/scan/ports", blockFakeURLs, async (req, res) => { ... });
-app.get("/scan/csrf", blockFakeURLs, async (req, res) => { ... });
-app.get("/scan/sensitive", blockFakeURLs, async (req, res) => { ... });
-
-app.get("/perf/*", blockFakeURLs, async (req, res) => { ... });
-app.get("/seo/*", blockFakeURLs, async (req, res) => { ... });
-
-
 
 // Fetch AI fix from backend
 async function getAIFix(issue) {
@@ -808,60 +768,6 @@ function addMessage(sender, text) {
   }
   init(85); tick();
 })();
-
-
-// Load fake URLs from backend
-async function loadFakeHistory() {
-  try {
-    const res = await fetch("/fake-history");
-    const fakeData = await res.json();
-
-    const list = document.getElementById("fakeList");
-    list.innerHTML = "";
-
-    if (fakeData.length === 0) {
-      list.innerHTML = "<p class='text-gray-400'>No flagged URLs</p>";
-      return;
-    }
-
-    fakeData.forEach(entry => {
-      const item = document.createElement("div");
-      item.className = "p-2 bg-gray-800 rounded hover:bg-gray-700 cursor-pointer";
-      const dateStr = new Date(entry.timestamp).toLocaleString();
-      item.textContent = `${entry.url || "Unknown URL"} – ${entry.totalIssues} issues – ${dateStr}`;
-
-      // ✅ make clickable like history sidebar
-      item.onclick = () => {
-        loadHistoryEntry(entry);   // reuse existing loader
-        toggleFakeSidebar();       // close fake sidebar
-      };
-
-      list.appendChild(item);
-    });
-  } catch (err) {
-    console.error("❌ Failed to load fake history:", err);
-  }
-}
-
-
-// Toggle Fake Sidebar
-function toggleFakeSidebar() {
-  const sidebar = document.getElementById("fakeSidebar");
-  const main = document.getElementById("mainContent");
-  const btn = document.getElementById("fakeToggleBtn");
-
-  if (sidebar.classList.contains("translate-x-full")) {
-    sidebar.classList.remove("translate-x-full");
-    main.classList.add("ml-64");
-    btn.style.display = "none";
-    loadFakeHistory(); // load data on open
-  } else {
-    sidebar.classList.add("translate-x-full");
-    main.classList.remove("ml-64");
-    btn.style.display = "";
-  }
-}
-
 </script>
 <script src="ai.js"></script>
 </body>
