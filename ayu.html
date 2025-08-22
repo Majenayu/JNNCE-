@@ -820,20 +820,18 @@ function addMessage(sender, text) {
 
 function toggleFakeSidebar() {
   const sidebar = document.getElementById("fakeSidebar");
-  const main = document.getElementById("mainContent");
   const btn = document.getElementById("fakeToggleBtn");
 
-  if (sidebar.classList.contains("-translate-x-full")) {
-    sidebar.classList.remove("-translate-x-full");
-    main.classList.add("ml-128"); // push main more, 2 sidebars wide
+  if (sidebar.classList.contains("translate-x-full")) {
+    sidebar.classList.remove("translate-x-full");  // show sidebar (slide in from right)
     if (btn) btn.style.display = "none";
     loadFakeList();
   } else {
-    sidebar.classList.add("-translate-x-full");
-    main.classList.remove("ml-128");
+    sidebar.classList.add("translate-x-full");  // hide sidebar (slide out to right)
     if (btn) btn.style.display = "";
   }
 }
+
 
 
 async function loadFakeList() {
