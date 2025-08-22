@@ -6,6 +6,8 @@ const fetch = (...args) => import("node-fetch").then(({ default: fetch }) => fet
 const cheerio = require("cheerio");
 const http = require("http");
 const https = require("https");
+const PDFDocument = require("pdfkit");
+const QuickChart = require("quickchart-js");
 
 const app = express();
 app.use(express.json());
@@ -27,6 +29,14 @@ const userSchema = new mongoose.Schema({
 });
 const User = mongoose.model("User", userSchema);
 
+// ✅ History Schema for AI fix requests
+const historySchema = new mongoose.Schema({
+  issue: String,
+  fix: String,
+  timestamp: { type: Date, default: Date.now }
+});
+const History = mongoose.model("History", historySchema);
+
 app.use((req, res, next) => {
   res.setHeader(
     "Content-Security-Policy",
@@ -34,9 +44,6 @@ app.use((req, res, next) => {
   );
   next();
 });
-
-
-
 
 // ------------------- AUTH ROUTES -------------------
 app.post("/register", async (req, res) => {
@@ -69,10 +76,7 @@ app.post("/login", async (req, res) => {
 app.get("/", (req, res) => res.sendFile(path.join(__dirname, "index.html")));
 app.get("/ayu.html", (req, res) => res.sendFile(path.join(__dirname, "ayu.html")));
 
-
 // ------------------- SECURITY SCANNER ROUTES -------------------
-
-// 1. SSL Labs
 app.get("/scan/ssl", async (req, res) => {
   let { url } = req.query;
   if (!url) return res.status(400).json({ error: "Missing ?url parameter" });
@@ -96,7 +100,6 @@ app.get("/scan/ssl", async (req, res) => {
   }
 });
 
-// 2. Security Headers
 app.get("/scan/headers", async (req, res) => {
   let { url } = req.query;
   if (!url.startsWith("http")) url = "https://" + url;
@@ -118,7 +121,6 @@ app.get("/scan/headers", async (req, res) => {
   }
 });
 
-// 3. Outdated JS Libraries
 app.get("/scan/libs", async (req, res) => {
   let { url } = req.query;
   if (!url.startsWith("http")) url = "https://" + url;
@@ -174,7 +176,6 @@ app.get("/scan/libs", async (req, res) => {
   }
 });
 
-// 4. XSS Heuristic
 app.get("/scan/xss", async (req, res) => {
   try {
     const url = req.query.url;
@@ -191,7 +192,6 @@ app.get("/scan/xss", async (req, res) => {
   }
 });
 
-// 5. Ports + Admin Panels
 app.get("/scan/ports", async (req, res) => {
   const url = new URL(req.query.url.startsWith("http") ? req.query.url : "http://" + req.query.url);
   const host = url.hostname;
@@ -221,7 +221,6 @@ app.get("/scan/ports", async (req, res) => {
   res.json({ host, openPorts: open, adminPanels: panelHits });
 });
 
-// 6. CSRF Token Detection
 app.get("/scan/csrf", async (req, res) => {
   try {
     const url = req.query.url;
@@ -244,7 +243,6 @@ app.get("/scan/csrf", async (req, res) => {
   }
 });
 
-// 7. Sensitive Data Exposure
 app.get("/scan/sensitive", async (req, res) => {
   try {
     const url = req.query.url;
@@ -267,12 +265,7 @@ app.get("/scan/sensitive", async (req, res) => {
   }
 });
 
-
-
-// ------------------- NEW: AI + SCORE ENGINE -------------------
-const PDFDocument = require("pdfkit");
-const fs = require("fs");
-
+// ------------------- AI + SCORE ENGINE -------------------
 const OPENROUTER_API_KEY = "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";
 
 // Helper: Calculate score and status
@@ -284,8 +277,37 @@ function calculateScore(findings) {
   return { score, status };
 }
 
-// Helper: Get AI suggestion (one-liner)
+// Helper: Fallback suggestions for common issues
+const fallbackSuggestions = {
+  "content-security-policy missing": "Add a Content-Security-Policy header to restrict resource loading.",
+  "strict-transport-security missing": "Implement Strict-Transport-Security header to enforce HTTPS.",
+  "x-frame-options missing": "Set X-Frame-Options to DENY or SAMEORIGIN to prevent clickjacking.",
+  "x-content-type-options missing": "Add X-Content-Type-Options: nosniff to prevent MIME-type sniffing.",
+  "referrer-policy missing": "Set Referrer-Policy to strict-origin-when-cross-origin for privacy.",
+  "permissions-policy missing": "Use Permissions-Policy to disable unused browser features.",
+  "Missing meta description": "Add a meta description tag to improve SEO and click-through rates.",
+  "Missing viewport meta tag": "Include <meta name='viewport' content='width=device-width, initial-scale=1'> for mobile responsiveness.",
+  "Missing sitemap.xml": "Create and submit a sitemap.xml to improve search engine crawling.",
+  "Missing robots.txt": "Add a robots.txt file to guide search engine crawlers.",
+  "Inline <script> tags found": "Move inline scripts to external files to improve security and caching.",
+  "Event handlers detected": "Replace inline event handlers with addEventListener for better maintainability.",
+  "Broken link: /level1": "Fix or remove broken links to improve user experience and SEO.",
+  "Broken link: #": "Ensure all anchor links point to valid sections or remove them.",
+  "Backlink data requires external SEO API integration": "Integrate with an SEO API like Ahrefs for backlink analysis.",
+  "Port 80 open": "Redirect HTTP traffic to HTTPS to secure connections.",
+  "Port 443 open": "Ensure SSL/TLS is properly configured for secure communication.",
+  "Load 899 ms": "Optimize server response time and resource loading to reduce page load time.",
+  "TTFB 405 ms": "Reduce Time to First Byte by optimizing server performance or using a CDN.",
+  "Blocking 2": "Minify and defer CSS/JS to reduce render-blocking resources."
+};
+
+// Helper: Get AI suggestion with fallback
 async function getAISolution(issue) {
+  // Return fallback suggestion if available
+  if (fallbackSuggestions[issue]) {
+    return fallbackSuggestions[issue];
+  }
+
   try {
     const response = await fetch("https://openrouter.ai/api/v1/chat/completions", {
       method: "POST",
@@ -299,8 +321,15 @@ async function getAISolution(issue) {
       })
     });
     const data = await response.json();
-    return data.choices?.[0]?.message?.content || "No AI suggestion";
+    const suggestion = data.choices?.[0]?.message?.content || "No AI suggestion available";
+    
+    // Save to history
+    await History.create({ issue, fix: suggestion });
+    return suggestion;
   } catch (err) {
+    console.error("AI suggestion error:", err);
+    // Save fallback to history
+    await History.create({ issue, fix: "AI service unavailable" });
     return "AI service unavailable";
   }
 }
@@ -313,9 +342,18 @@ app.get("/ai-fix", async (req, res) => {
   res.json({ issue, fix });
 });
 
+// NEW ROUTE: Fetch AI fix history
+app.get("/history", async (req, res) => {
+  try {
+    const history = await History.find().sort({ timestamp: -1 }).limit(50);
+    res.json(history);
+  } catch (err) {
+    console.error("History fetch error:", err);
+    res.status(500).json({ error: "Failed to load history" });
+  }
+});
 
-// ------------------- NEW ROUTE: Unified Report -------------------
-const QuickChart = require('quickchart-js'); // Install: npm i quickchart-js
+// ------------------- UNIFIED REPORT -------------------
 app.post("/generate-report", async (req, res) => {
   try {
     const { scanResults } = req.body;
@@ -361,7 +399,6 @@ app.post("/generate-report", async (req, res) => {
 
     // === Add Chart ===
     try {
-      const QuickChart = require('quickchart-js');
       const qc = new QuickChart();
       qc.setConfig({
         type: 'bar',
@@ -413,9 +450,6 @@ app.post("/generate-report", async (req, res) => {
   }
 });
 
-
-
-
 // ------------------- PERFORMANCE SCANNER ROUTES -------------------
 app.get("/perf/pageload", async (req, res) => {
   const { url } = req.query;
@@ -462,7 +496,7 @@ app.get("/perf/images", async (req, res) => {
     });
 
     const results = [];
-    for (let src of images.slice(0, 10)) { // limit 10 for speed
+    for (let src of images.slice(0, 10)) {
       try {
         const imgRes = await fetch(src.startsWith("http") ? src : new URL(src, url).href, { method: "HEAD" });
         const size = imgRes.headers.get("content-length") || "unknown";
@@ -525,7 +559,7 @@ app.get("/perf/resources", async (req, res) => {
   }
 });
 
-// 1. Meta Tags
+// ------------------- SEO SCANNER ROUTES -------------------
 app.get("/seo/meta", async (req, res) => {
   try {
     let { url } = req.query;
@@ -542,7 +576,6 @@ app.get("/seo/meta", async (req, res) => {
   }
 });
 
-// 2. Keyword Density
 app.get("/seo/keywords", async (req, res) => {
   try {
     let { url } = req.query;
@@ -560,7 +593,6 @@ app.get("/seo/keywords", async (req, res) => {
   }
 });
 
-// 3. Heading Structure
 app.get("/seo/headings", async (req, res) => {
   try {
     let { url } = req.query;
@@ -578,7 +610,6 @@ app.get("/seo/headings", async (req, res) => {
   }
 });
 
-// 4. URL Structure
 app.get("/seo/url", async (req, res) => {
   try {
     let { url } = req.query;
@@ -591,7 +622,6 @@ app.get("/seo/url", async (req, res) => {
   }
 });
 
-// 5. Mobile Friendliness (viewport check)
 app.get("/seo/mobile", async (req, res) => {
   try {
     let { url } = req.query;
@@ -608,7 +638,6 @@ app.get("/seo/mobile", async (req, res) => {
   }
 });
 
-// 6. Broken Links
 app.get("/seo/broken", async (req, res) => {
   try {
     let { url } = req.query;
@@ -618,7 +647,7 @@ app.get("/seo/broken", async (req, res) => {
     const $ = cheerio.load(html);
     let links = $("a[href]").map((i, el) => $(el).attr("href")).get();
     let issues = [];
-    for (let link of links.slice(0, 10)) { // limit 10
+    for (let link of links.slice(0, 10)) {
       try {
         const r = await fetch(link.startsWith("http") ? link : new URL(link, url).href, { method: "HEAD" });
         if (r.status >= 400) issues.push(`Broken link: ${link}`);
@@ -632,7 +661,6 @@ app.get("/seo/broken", async (req, res) => {
   }
 });
 
-// 7. Image Optimization
 app.get("/seo/images", async (req, res) => {
   try {
     let { url } = req.query;
@@ -650,7 +678,6 @@ app.get("/seo/images", async (req, res) => {
   }
 });
 
-// 8. Sitemap & Robots.txt
 app.get("/seo/sitemap", async (req, res) => {
   try {
     let { url } = req.query;
@@ -671,17 +698,14 @@ app.get("/seo/sitemap", async (req, res) => {
   }
 });
 
-// 9. Backlink Profile (stub, since needs external APIs)
 app.get("/seo/backlinks", async (req, res) => {
   try {
-    // Normally you’d query Google Search Console / Ahrefs API etc.
     res.json({ issues: ["Backlink data requires external SEO API integration"] });
   } catch {
     res.status(500).json({ error: "Backlink check failed" });
   }
 });
 
-// 10. Crawl Errors (basic: fetch homepage status)
 app.get("/seo/crawl", async (req, res) => {
   try {
     let { url } = req.query;
@@ -695,12 +719,9 @@ app.get("/seo/crawl", async (req, res) => {
   }
 });
 
-
-// Import history routes
+// Import history routes (assuming script.js handles client-side, no change needed here)
 require("./script")(app);
-
 
 // ✅ Start server
 const PORT = process.env.PORT || 3000;
 app.listen(PORT, () => console.log(`🚀 Server running on port ${PORT}`));
-
