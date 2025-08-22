@@ -789,6 +789,67 @@ function addMessage(sender, text) {
   }
   init(85); tick();
 })();
+
+
+  async function saveFakeIfNeeded() {
+  const totalIssues = 
+    Object.values(scanResults).reduce((a, b) => a + b.length, 0) +
+    Object.values(perfResults).reduce((a, b) => a + b.length, 0) +
+    Object.values(seoResults).reduce((a, b) => a + b.length, 0);
+
+  if (totalIssues > 10) {
+    const url = document.getElementById("urlInput").value.trim();
+    try {
+      await fetch("/save-fake", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ url, issues: totalIssues })
+      });
+    } catch (err) {
+      console.error("❌ Failed to save fake url", err);
+    }
+  }
+}
+
+function toggleFakeSidebar() {
+  const sidebar = document.getElementById("fakeSidebar");
+  const btn = document.getElementById("fakeToggleBtn");
+
+  if (sidebar.classList.contains("translate-x-full")) {
+    sidebar.classList.remove("translate-x-full");
+    if (btn) btn.style.display = "none";
+    loadFakeList();
+  } else {
+    sidebar.classList.add("translate-x-full");
+    if (btn) btn.style.display = "";
+  }
+}
+
+async function loadFakeList() {
+  try {
+    const res = await fetch("/fake-urls");
+    const fakeUrls = await res.json();
+    const list = document.getElementById("fakeList");
+    list.innerHTML = "";
+
+    if (fakeUrls.length === 0) {
+      list.innerHTML = "<p class='text-gray-400'>No fake urls detected yet</p>";
+      return;
+    }
+
+    fakeUrls.forEach(entry => {
+      const item = document.createElement("div");
+      item.className = "p-2 bg-gray-800 rounded hover:bg-gray-700 cursor-pointer";
+      const dateStr = new Date(entry.timestamp).toLocaleString();
+      item.textContent = `${entry.url} – ${entry.issues} issues – ${dateStr}`;
+      list.appendChild(item);
+    });
+  } catch (err) {
+    console.error("❌ Failed to load fake urls:", err);
+  }
+}
+
+  
 </script>
 <script src="ai.js"></script>
 </body>
