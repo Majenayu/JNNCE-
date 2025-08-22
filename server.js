@@ -29,14 +29,6 @@ const userSchema = new mongoose.Schema({
 });
 const User = mongoose.model("User", userSchema);
 
-// ✅ History Schema for AI fix requests
-const historySchema = new mongoose.Schema({
-  issue: String,
-  fix: String,
-  timestamp: { type: Date, default: Date.now }
-});
-const History = mongoose.model("History", historySchema);
-
 app.use((req, res, next) => {
   res.setHeader(
     "Content-Security-Policy",
@@ -296,9 +288,12 @@ const fallbackSuggestions = {
   "Backlink data requires external SEO API integration": "Integrate with an SEO API like Ahrefs for backlink analysis.",
   "Port 80 open": "Redirect HTTP traffic to HTTPS to secure connections.",
   "Port 443 open": "Ensure SSL/TLS is properly configured for secure communication.",
-  "Load 899 ms": "Optimize server response time and resource loading to reduce page load time.",
+  "Load 899 ms": "Optimize server response time and resource loading to reduce page load time below 500ms.",
   "TTFB 405 ms": "Reduce Time to First Byte by optimizing server performance or using a CDN.",
-  "Blocking 2": "Minify and defer CSS/JS to reduce render-blocking resources."
+  "Blocking 2": "Minify and defer CSS/JS to reduce render-blocking resources.",
+  "Grade: B": "Address identified issues to improve SSL or performance grade to A.",
+  "https://xss-game.appspot.com/static/game.css took 94ms": "Optimize CSS delivery with minification or inline critical CSS.",
+  "https://xss-game.appspot.com/static/game.js took 102ms": "Minify and defer JavaScript to improve page load speed."
 };
 
 // Helper: Get AI suggestion with fallback
@@ -321,15 +316,14 @@ async function getAISolution(issue) {
       })
     });
     const data = await response.json();
-    const suggestion = data.choices?.[0]?.message?.content || "No AI suggestion available";
-    
-    // Save to history
-    await History.create({ issue, fix: suggestion });
+    if (!data.choices?.[0]?.message?.content) {
+      console.error("AI response error: No content in response", data);
+      return "No AI suggestion available";
+    }
+    const suggestion = data.choices[0].message.content;
     return suggestion;
   } catch (err) {
-    console.error("AI suggestion error:", err);
-    // Save fallback to history
-    await History.create({ issue, fix: "AI service unavailable" });
+    console.error("AI suggestion error:", err.message, err.stack);
     return "AI service unavailable";
   }
 }
@@ -340,17 +334,6 @@ app.get("/ai-fix", async (req, res) => {
   if (!issue) return res.status(400).json({ error: "Missing ?issue" });
   const fix = await getAISolution(issue);
   res.json({ issue, fix });
-});
-
-// NEW ROUTE: Fetch AI fix history
-app.get("/history", async (req, res) => {
-  try {
-    const history = await History.find().sort({ timestamp: -1 }).limit(50);
-    res.json(history);
-  } catch (err) {
-    console.error("History fetch error:", err);
-    res.status(500).json({ error: "Failed to load history" });
-  }
 });
 
 // ------------------- UNIFIED REPORT -------------------
@@ -719,7 +702,7 @@ app.get("/seo/crawl", async (req, res) => {
   }
 });
 
-// Import history routes (assuming script.js handles client-side, no change needed here)
+// Import history routes
 require("./script")(app);
 
 // ✅ Start server
