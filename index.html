@@ -2,16 +2,46 @@
 <html lang="en">
 <head>
   <meta charset="UTF-8">
-  <title>NSS Login/Register</title>
-  <script src="https://cdn.tailwindcss.com"></script>
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+  <meta name="theme-color" content="#4338ca">
+  <meta name="apple-mobile-web-app-capable" content="yes">
+  <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+  <meta name="apple-mobile-web-app-title" content="ScamShield">
+  <link rel="manifest" href="/manifest.json">
+  <link rel="icon" type="image/png" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 192 192'><rect fill='%234338ca' width='192' height='192'/><text x='50%' y='50%' font-size='100' font-weight='bold' fill='white' text-anchor='middle' dominant-baseline='middle'>S</text></svg>">
+  <title>ScamShield - Login & Register</title>
   <style>
+    /* === Reset & Base === */
+    * { margin: 0; padding: 0; box-sizing: border-box; }
+    body {
+      min-height: 100vh;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      font-family: 'DM Sans', Arial, sans-serif;
+      background: linear-gradient(135deg, #4338ca, #7e22ce, #db2777);
+      background-size: 200% 200%;
+      animation: gradientMove 15s ease infinite;
+      color: #fff;
+      overflow: hidden;
+    }
+    @keyframes gradientMove {
+      0% { background-position: 0 0; }
+      50% { background-position: 100% 100%; }
+      100% { background-position: 0 0; }
+    }
+
     /* Floating Circles */
     @keyframes float {
       0% { transform: translateY(0) translateX(0); }
       50% { transform: translateY(-20px) translateX(10px); }
       100% { transform: translateY(0) translateX(0); }
     }
-    .floating { animation: float 8s ease-in-out infinite; }
+    .floating {
+      position: absolute;
+      border-radius: 50%;
+      animation: float 8s ease-in-out infinite;
+    }
 
     /* Particles */
     .particle {
@@ -27,17 +57,32 @@
       to { transform: translateY(-800px); opacity: 0; }
     }
 
-    /* Glass effect */
+    /* Cobweb */
+    .cobweb {
+      position: absolute;
+      width: 180px;
+      height: 180px;
+      opacity: 0.35;
+      pointer-events: none;
+      transition: transform 0.3s ease-out;
+    }
+    .cobweb svg { width: 100%; height: 100%; }
+    .cobweb.tl { top: 0; left: 0; }
+    .cobweb.tr { top: 0; right: 0; }
+    .cobweb.bl { bottom: 0; left: 0; }
+    .cobweb.br { bottom: 0; right: 0; }
+
+    /* Glass container */
     .glass {
       background: rgba(255, 255, 255, 0.15);
       backdrop-filter: blur(12px);
       border: 1px solid rgba(255, 255, 255, 0.2);
+      border-radius: 20px;
+      padding: 30px;
+      width: 360px;
+      text-align: center;
       position: relative;
       z-index: 10;
-    }
-
-    /* Glowing Aura */
-    .glow-box {
       box-shadow: 0 0 30px rgba(99,102,241,0.6), 0 0 60px rgba(236,72,153,0.4);
       animation: pulseGlow 4s ease-in-out infinite;
     }
@@ -46,9 +91,78 @@
       50% { box-shadow: 0 0 50px rgba(139,92,246,0.8), 0 0 100px rgba(236,72,153,0.6); }
     }
 
+    h2 {
+      font-size: 28px;
+      font-weight: bold;
+      margin-bottom: 20px;
+      color: #fff;
+      text-shadow: 1px 1px 5px rgba(0,0,0,0.3);
+    }
+
+    /* Language Selector */
+    .lang-selector {
+      display: flex;
+      gap: 8px;
+      margin-bottom: 16px;
+      justify-content: center;
+    }
+
+    .lang-btn {
+      padding: 6px 12px;
+      background: rgba(255,255,255,0.2);
+      border: 1px solid rgba(255,255,255,0.3);
+      border-radius: 6px;
+      color: #fff;
+      font-size: 12px;
+      font-weight: 600;
+      cursor: pointer;
+      transition: all 0.3s;
+    }
+
+    .lang-btn.active {
+      background: #fff;
+      color: #4338ca;
+      border-color: #fff;
+    }
+
+    .lang-btn:hover {
+      background: rgba(255,255,255,0.3);
+    }
+
+    /* Inputs */
+    input {
+      width: 100%;
+      padding: 12px 14px;
+      border-radius: 8px;
+      border: 1px solid rgba(255,255,255,0.3);
+      background: rgba(255,255,255,0.2);
+      color: #fff;
+      margin-bottom: 12px;
+      font-size: 14px;
+      outline: none;
+      font-family: 'DM Sans', Arial, sans-serif;
+    }
+    input::placeholder { color: #e2e2e2; }
+    input:focus { border-color: #ec4899; background: rgba(255,255,255,0.3); }
+
     /* Buttons */
-    .btn-shine { position: relative; overflow: hidden; }
-    .btn-shine::before {
+    button {
+      width: 100%;
+      padding: 12px;
+      border-radius: 8px;
+      border: none;
+      background: linear-gradient(to right, #ec4899, #7e22ce);
+      color: #fff;
+      font-size: 16px;
+      font-weight: 600;
+      cursor: pointer;
+      position: relative;
+      overflow: hidden;
+      transition: transform 0.3s;
+      font-family: 'DM Sans', Arial, sans-serif;
+    }
+    button:hover { transform: scale(1.05); }
+    button::before {
       content: "";
       position: absolute;
       top: 0;
@@ -58,9 +172,48 @@
       background: linear-gradient(120deg, transparent, rgba(255,255,255,0.5), transparent);
       transition: all 0.6s;
     }
-    .btn-shine:hover::before { left: 100%; }
+    button:hover::before { left: 100%; }
 
-    /* Loader spinner */
+    .voice-btn {
+      width: 40px;
+      padding: 0;
+      margin-bottom: 12px;
+      margin-left: auto;
+      margin-right: auto;
+      display: block;
+      background: rgba(255,255,255,0.2);
+    }
+
+    .voice-btn:hover {
+      background: rgba(255,255,255,0.4);
+    }
+
+    .voice-btn.active {
+      background: #00e5b0;
+      color: #000;
+    }
+
+    .switch-text {
+      font-size: 14px;
+      color: #e0e0e0;
+      margin-top: 10px;
+    }
+    .switch-text span {
+      color: #fbcfe8;
+      cursor: pointer;
+      text-decoration: underline;
+    }
+
+    /* Loader */
+    #loader {
+      display: none;
+      position: fixed;
+      inset: 0;
+      background: rgba(0,0,0,0.6);
+      z-index: 100;
+      justify-content: center;
+      align-items: center;
+    }
     .spinner {
       border: 4px solid rgba(255, 255, 255, 0.3);
       border-top: 4px solid white;
@@ -71,24 +224,45 @@
     }
     @keyframes spin { 0%{transform:rotate(0)}100%{transform:rotate(360deg)} }
 
-    /* Cobwebs */
-    .cobweb {
-      position: absolute;
-      width: 180px;
-      height: 180px;
-      opacity: 0.35;
-      transition: transform 0.3s ease-out;
-      pointer-events: none;
+    /* Layout: Floating circles */
+    .circle1 { top: 40px; left: 80px; width: 160px; height: 160px; background: rgba(236,72,153,0.3); }
+    .circle2 { bottom: 100px; right: 160px; width: 130px; height: 130px; background: rgba(99,102,241,0.3); }
+    .circle3 { top: 50%; right: 40px; width: 100px; height: 100px; background: rgba(168,85,247,0.3); }
+
+    /* Toast Notification */
+    .toast {
+      position: fixed;
+      bottom: 30px;
+      left: 50%;
+      transform: translateX(-50%);
+      background: rgba(0,0,0,0.8);
+      color: #fff;
+      padding: 12px 20px;
+      border-radius: 8px;
+      z-index: 999;
+      animation: slideUp 0.4s ease-out;
     }
-    .cobweb svg { width: 100%; height: 100%; }
-    .cobweb.tl { top: 0; left: 0; }
-    .cobweb.tr { top: 0; right: 0; }
-    .cobweb.bl { bottom: 0; left: 0; }
-    .cobweb.br { bottom: 0; right: 0; }
+
+    @keyframes slideUp {
+      from {
+        transform: translateX(-50%) translateY(100px);
+        opacity: 0;
+      }
+      to {
+        transform: translateX(-50%) translateY(0);
+        opacity: 1;
+      }
+    }
+
+    @media (max-width: 480px) {
+      .glass {
+        width: 90%;
+        padding: 20px;
+      }
+    }
   </style>
 </head>
-<body class="min-h-screen flex items-center justify-center bg-gradient-to-br from-indigo-700 via-purple-700 to-pink-600 relative overflow-hidden">
-
+<body>
   <!-- Cobwebs -->
   <div class="cobweb tl">
     <svg viewBox="0 0 100 100" stroke="white" fill="none" stroke-width="0.5">
@@ -140,147 +314,271 @@
   </div>
 
   <!-- Floating Circles -->
-  <div class="absolute top-10 left-20 w-40 h-40 bg-pink-400/20 rounded-full floating"></div>
-  <div class="absolute bottom-20 right-40 w-32 h-32 bg-indigo-300/30 rounded-full floating"></div>
-  <div class="absolute top-1/2 right-10 w-24 h-24 bg-purple-200/40 rounded-full floating"></div>
+  <div class="floating circle1"></div>
+  <div class="floating circle2"></div>
+  <div class="floating circle3"></div>
 
   <!-- Particles -->
   <div id="particles"></div>
 
-  <!-- Form with Glow -->
-  <div class="glass glow-box rounded-2xl p-8 w-[360px] text-center">
-    <h2 id="form-title" class="text-3xl font-extrabold mb-6 text-white drop-shadow">Login</h2>
+  <!-- Form -->
+  <div class="glass">
+    <h2 id="form-title">🛡️ ScamShield</h2>
 
-    <!-- Login Form (IDs unchanged) -->
-    <form id="loginForm" class="space-y-4 active">
-      <input type="text" id="loginName" placeholder="Name" required 
-        class="w-full px-4 py-2 rounded-lg border border-white/20 bg-white/20 text-white placeholder-gray-200 focus:ring-2 focus:ring-pink-400 outline-none" />
-      <input type="password" id="loginPassword" placeholder="Password" required 
-        class="w-full px-4 py-2 rounded-lg border border-white/20 bg-white/20 text-white placeholder-gray-200 focus:ring-2 focus:ring-indigo-400 outline-none" />
-      <button type="submit" class="w-full py-2 rounded-lg bg-gradient-to-r from-pink-500 to-purple-600 text-white font-semibold btn-shine transition-transform hover:scale-105">Login</button>
-      <div class="text-sm text-gray-200">Don’t have an account? 
-        <span onclick="toggleForm('register')" class="text-pink-300 cursor-pointer hover:underline">Register</span>
+    <div class="lang-selector">
+      <button class="lang-btn active" onclick="changeLanguage('en')">EN</button>
+      <button class="lang-btn" onclick="changeLanguage('hi')">HI</button>
+      <button class="lang-btn" onclick="changeLanguage('kn')">KN</button>
+    </div>
+
+    <button class="voice-btn" id="voiceToggle" title="Toggle Voice">🔊</button>
+
+    <form id="loginForm">
+      <input type="text" id="loginName" placeholder="Name" required />
+      <input type="password" id="loginPassword" placeholder="Password" required />
+      <button type="submit" data-i18n="login">Login</button>
+      <div class="switch-text">
+        <span data-i18n="no_account">Don't have an account?</span> <span onclick="toggleForm('register')" data-i18n="register">Register</span>
       </div>
     </form>
 
-    <!-- Register Form (IDs unchanged) -->
-    <form id="registerForm" class="space-y-4 hidden">
-      <input type="text" id="regName" placeholder="Name" required 
-        class="w-full px-4 py-2 rounded-lg border border-white/20 bg-white/20 text-white placeholder-gray-200 focus:ring-2 focus:ring-pink-400 outline-none" />
-      <input type="email" id="regEmail" placeholder="Email" required 
-        class="w-full px-4 py-2 rounded-lg border border-white/20 bg-white/20 text-white placeholder-gray-200 focus:ring-2 focus:ring-indigo-400 outline-none" />
-      <input type="password" id="regPassword" placeholder="Password" required 
-        class="w-full px-4 py-2 rounded-lg border border-white/20 bg-white/20 text-white placeholder-gray-200 focus:ring-2 focus:ring-purple-400 outline-none" />
-      <button type="submit" class="w-full py-2 rounded-lg bg-gradient-to-r from-indigo-500 to-purple-700 text-white font-semibold btn-shine transition-transform hover:scale-105">Register</button>
-      <div class="text-sm text-gray-200">Already have an account? 
-        <span onclick="toggleForm('login')" class="text-indigo-300 cursor-pointer hover:underline">Login</span>
+    <form id="registerForm" style="display:none;">
+      <input type="text" id="regName" placeholder="Name" required />
+      <input type="email" id="regEmail" placeholder="Email" required />
+      <input type="password" id="regPassword" placeholder="Password" required />
+      <button type="submit" data-i18n="register">Register</button>
+      <div class="switch-text">
+        <span data-i18n="have_account">Already have an account?</span> <span onclick="toggleForm('login')" data-i18n="login">Login</span>
       </div>
     </form>
   </div>
 
-  <!-- Loader Overlay (used by JS below) -->
-  <div class="hidden fixed inset-0 bg-black/60 flex items-center justify-center z-50" id="loader">
+  <!-- Loader -->
+  <div id="loader">
     <div class="spinner"></div>
   </div>
 
-<script>
-  function toggleForm(type) {
-    document.getElementById("loginForm").classList.add("hidden");
-    document.getElementById("registerForm").classList.add("hidden");
-    if (type === "login") {
-      document.getElementById("loginForm").classList.remove("hidden");
-      document.getElementById("form-title").innerText = "Login";
-    } else {
-      document.getElementById("registerForm").classList.remove("hidden");
-      document.getElementById("form-title").innerText = "Register";
+  <script>
+    // Service Worker Registration
+    if ('serviceWorker' in navigator) {
+      navigator.serviceWorker.register('/sw.js').catch(() => {});
     }
-  }
 
-  const loader = document.getElementById("loader");
-
-  /* ---------------------------
-     Restore loader usage + API calls
-  ----------------------------*/
-
-  // Register
-  document.getElementById("registerForm").addEventListener("submit", async (e) => {
-    e.preventDefault();
-    loader.classList.remove("hidden");
-    try {
-      const name = document.getElementById("regName").value;
-      const email = document.getElementById("regEmail").value;
-      const password = document.getElementById("regPassword").value;
-
-      const res = await fetch("http://localhost:3000/register", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ name, email, password })
-      });
-
-      const data = await res.json();
-      alert(data.message || (res.ok ? "Registered!" : "Registration failed"));
-      if (res.ok) toggleForm("login");
-    } catch (err) {
-      alert("Network error during registration");
-    } finally {
-      loader.classList.add("hidden");
-    }
-  });
-
-  // Login
-  document.getElementById("loginForm").addEventListener("submit", async (e) => {
-    e.preventDefault();
-    loader.classList.remove("hidden");
-    try {
-      const name = document.getElementById("loginName").value;
-      const password = document.getElementById("loginPassword").value;
-
-      const res = await fetch("http://localhost:3000/login", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ name, password })
-      });
-
-      const data = await res.json();
-      if (res.ok) {
-        localStorage.setItem("username", data.user.name);
-        localStorage.setItem("email", data.user.email);
-        localStorage.setItem("role", "User");
-        window.location.href = "ayu.html";
-      } else {
-        alert(data.message || "Login failed");
+    // Internationalization
+    const translations = {
+      en: {
+        login: "Login",
+        register: "Register",
+        no_account: "Don't have an account?",
+        have_account: "Already have an account?",
+        registered: "✅ Registered successfully! Please login.",
+        login_success: "✅ Login successful! Redirecting...",
+        login_failed: "❌ Invalid credentials",
+        register_error: "❌ Registration error",
+        email_exists: "❌ Email already registered",
+        network_error: "❌ Network error occurred",
+        voice_on: "Voice enabled",
+        voice_off: "Voice disabled"
+      },
+      hi: {
+        login: "लॉगिन करें",
+        register: "पंजीकृत करें",
+        no_account: "खाता नहीं है?",
+        have_account: "पहले से खाता है?",
+        registered: "✅ सफलतापूर्वक पंजीकृत! कृपया लॉगिन करें।",
+        login_success: "✅ लॉगिन सफल! पुनर्निर्देशित हो रहे हैं...",
+        login_failed: "❌ अमान्य क्रेडेंशियल",
+        register_error: "❌ पंजीकरण त्रुटि",
+        email_exists: "❌ ईमेल पहले से पंजीकृत है",
+        network_error: "❌ नेटवर्क त्रुटि हुई",
+        voice_on: "आवाज सक्षम",
+        voice_off: "आवाज अक्षम"
+      },
+      kn: {
+        login: "ಲಾಗಿನ್ ಮಾಡಿ",
+        register: "ನೋಂದಾಯಿಸಿ",
+        no_account: "ಖಾತೆ ಇಲ್ಲವೇ?",
+        have_account: "ಈಗಾಗಲೇ ಖಾತೆ ಹೊಂದಿದ್ದೀರಿ?",
+        registered: "✅ ಯಶಸ್ವಿಯಾಗಿ ನೋಂದಾಯಿತ! ದಯವಿಟ್ಟು ಲಾಗಿನ್ ಮಾಡಿ।",
+        login_success: "✅ ಲಾಗಿನ್ ಯಶಸ್ವಿ! ಪುನರ್ನಿರ್ದೇಶನ ಮಾಡುತ್ತಿದೆ...",
+        login_failed: "❌ ಅಮಾನ್ಯ ಪ್ರವೇಶಾಂಶ",
+        register_error: "❌ ನೋಂದಾಯಿಸುವಿಕೆ ದೋಷ",
+        email_exists: "❌ ಇಮೇಲ್ ಈಗಾಗಲೇ ನೋಂದಾಯಿತ",
+        network_error: "❌ ನೆಟ್ವರ್ಕ್ ದೋಷ ಸಂಭವಿಸಿದೆ",
+        voice_on: "ಧ್ವನಿ ಸಕ್ರಿಯ",
+        voice_off: "ಧ್ವನಿ ನಿಷ್ಕ್ರಿಯ"
       }
-    } catch (err) {
-      alert("Network error during login");
-    } finally {
-      loader.classList.add("hidden");
+    };
+
+    let currentLanguage = 'en';
+    let voiceEnabled = true;
+
+    // Update UI text
+    function updateLanguage() {
+      document.querySelectorAll('[data-i18n]').forEach(el => {
+        const key = el.getAttribute('data-i18n');
+        if (translations[currentLanguage][key]) {
+          el.textContent = translations[currentLanguage][key];
+        }
+      });
+
+      document.querySelectorAll('.lang-btn').forEach((btn, idx) => {
+        btn.classList.remove('active');
+      });
+      document.querySelectorAll('.lang-btn')[currentLanguage === 'en' ? 0 : currentLanguage === 'hi' ? 1 : 2].classList.add('active');
     }
-  });
 
-  // Particles
-  const particlesContainer = document.getElementById("particles");
-  for (let i = 0; i < 40; i++) {
-    const p = document.createElement("div");
-    p.className = "particle";
-    p.style.left = Math.random() * window.innerWidth + "px";
-    p.style.top = Math.random() * window.innerHeight + "px";
-    p.style.animationDuration = 10 + Math.random() * 20 + "s";
-    particlesContainer.appendChild(p);
-  }
+    function changeLanguage(lang) {
+      currentLanguage = lang;
+      localStorage.setItem('language', lang);
+      updateLanguage();
+      speak(translations[lang]['voice_on']);
+    }
 
-  // Cobweb interactive movement
-  const cobwebs = document.querySelectorAll(".cobweb");
-  document.addEventListener("mousemove", (e) => {
-    const x = (e.clientX / window.innerWidth - 0.5) * 30;
-    const y = (e.clientY / window.innerHeight - 0.5) * 30;
-    cobwebs.forEach((cob, i) => {
-      cob.style.transform = `translate(${x * (i % 2 === 0 ? 1 : -1)}px, ${y * (i < 2 ? 1 : -1)}px) scale(1.05)`;
+    // Text-to-Speech
+    function speak(text) {
+      if (!voiceEnabled) return;
+      
+      window.speechSynthesis.cancel();
+      
+      const utterance = new SpeechSynthesisUtterance(text);
+      utterance.lang = currentLanguage === 'hi' ? 'hi-IN' : currentLanguage === 'kn' ? 'kn-IN' : 'en-US';
+      utterance.rate = 0.95;
+      utterance.pitch = 1;
+      utterance.volume = 1;
+      
+      window.speechSynthesis.speak(utterance);
+    }
+
+    // Voice Toggle
+    document.getElementById('voiceToggle').addEventListener('click', function() {
+      voiceEnabled = !voiceEnabled;
+      this.classList.toggle('active');
+      speak(voiceEnabled ? translations[currentLanguage]['voice_on'] : translations[currentLanguage]['voice_off']);
     });
-  });
-  document.addEventListener("mouseleave", () => {
-    cobwebs.forEach((cob) => (cob.style.transform = "translate(0,0) scale(1)"));
-  });
-</script>
 
+    // Form Toggle
+    function toggleForm(type) {
+      document.getElementById("loginForm").style.display = "none";
+      document.getElementById("registerForm").style.display = "none";
+      document.getElementById("form-title").innerText = type === "login" ? "🛡️ ScamShield" : "🛡️ ScamShield";
+      document.getElementById(type + "Form").style.display = "block";
+      speak(translations[currentLanguage][type]);
+    }
+
+    const loader = document.getElementById("loader");
+
+    // Register
+    document.getElementById("registerForm").addEventListener("submit", async (e) => {
+      e.preventDefault();
+      loader.style.display = "flex";
+      try {
+        const name = document.getElementById("regName").value;
+        const email = document.getElementById("regEmail").value;
+        const password = document.getElementById("regPassword").value;
+
+        const res = await fetch("/register", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ name, email, password })
+        });
+
+        const data = await res.json();
+        if (res.ok) {
+          showToast(translations[currentLanguage]['registered']);
+          speak(translations[currentLanguage]['registered']);
+          toggleForm("login");
+        } else {
+          const msg = data.message.includes("Email") ? translations[currentLanguage]['email_exists'] : translations[currentLanguage]['register_error'];
+          showToast(msg);
+          speak(msg);
+        }
+      } catch {
+        const msg = translations[currentLanguage]['network_error'];
+        showToast(msg);
+        speak(msg);
+      } finally {
+        loader.style.display = "none";
+      }
+    });
+
+    // Login
+    document.getElementById("loginForm").addEventListener("submit", async (e) => {
+      e.preventDefault();
+      loader.style.display = "flex";
+      try {
+        const name = document.getElementById("loginName").value;
+        const password = document.getElementById("loginPassword").value;
+
+        const res = await fetch("/login", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ name, password })
+        });
+
+        const data = await res.json();
+        if (res.ok) {
+          localStorage.setItem("username", data.user.name);
+          localStorage.setItem("email", data.user.email);
+          localStorage.setItem("language", currentLanguage);
+          showToast(translations[currentLanguage]['login_success']);
+          speak(translations[currentLanguage]['login_success']);
+          setTimeout(() => {
+            window.location.href = "ayu.html";
+          }, 1000);
+        } else {
+          const msg = translations[currentLanguage]['login_failed'];
+          showToast(msg);
+          speak(msg);
+        }
+      } catch {
+        const msg = translations[currentLanguage]['network_error'];
+        showToast(msg);
+        speak(msg);
+      } finally {
+        loader.style.display = "none";
+      }
+    });
+
+    // Particles
+    const particlesContainer = document.getElementById("particles");
+    for (let i = 0; i < 40; i++) {
+      const p = document.createElement("div");
+      p.className = "particle";
+      p.style.left = Math.random() * window.innerWidth + "px";
+      p.style.top = Math.random() * window.innerHeight + "px";
+      p.style.animationDuration = 10 + Math.random() * 20 + "s";
+      particlesContainer.appendChild(p);
+    }
+
+    // Cobweb move
+    const cobwebs = document.querySelectorAll(".cobweb");
+    document.addEventListener("mousemove", (e) => {
+      const x = (e.clientX / window.innerWidth - 0.5) * 30;
+      const y = (e.clientY / window.innerHeight - 0.5) * 30;
+      cobwebs.forEach((cob, i) => {
+        cob.style.transform = `translate(${x * (i % 2 === 0 ? 1 : -1)}px, ${y * (i < 2 ? 1 : -1)}px) scale(1.05)`;
+      });
+    });
+    document.addEventListener("mouseleave", () => {
+      cobwebs.forEach((cob) => (cob.style.transform = "translate(0,0) scale(1)"));
+    });
+
+    // Toast
+    function showToast(message) {
+      const toast = document.createElement('div');
+      toast.className = 'toast';
+      toast.textContent = message;
+      document.body.appendChild(toast);
+      
+      setTimeout(() => {
+        toast.remove();
+      }, 3000);
+    }
+
+    // Initialize
+    currentLanguage = localStorage.getItem('language') || 'en';
+    updateLanguage();
+  </script>
 </body>
 </html>

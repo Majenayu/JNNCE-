@@ -2,505 +2,2187 @@
 <html lang="en">
 <head>
   <meta charset="UTF-8">
-  <title>🔐 Security & ⚡ Performance & 🌐 SEO Scanner</title>
-  <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+  <title>ScamShield</title>
+  <link rel="manifest" href="/manifest.json">
+  <link href="https://fonts.googleapis.com/css2?family=Syne:wght@400;600;700;800&family=DM+Sans:wght@300;400;500;600&display=swap" rel="stylesheet">
+  <script src="https://cdn.jsdelivr.net/npm/jsqr@1.4.0/dist/jsQR.min.js"></script>
+  <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.0/dist/chart.umd.min.js"></script>
   <style>
-    body {margin:0;font-family:"Segoe UI",Arial,sans-serif;background:linear-gradient(to bottom,#1a1f4d,#4b0082);color:white;overflow-x:hidden;}
-    h1,h2{text-align:center;}
-    input,button{padding:10px 15px;border-radius:8px;border:none;margin:8px;font-size:15px;}
-    input{width:350px;outline:none;}
-    button{background:rgba(255,255,255,0.15);color:white;backdrop-filter:blur(10px);cursor:pointer;transition:all 0.3s ease;}
-    button:hover{background:rgba(255,255,255,0.3);transform:scale(1.05);}
-    .section{margin:25px auto;padding:20px;width:90%;max-width:900px;border-radius:15px;background:rgba(255,255,255,0.1);backdrop-filter:blur(12px);box-shadow:0 8px 25px rgba(0,0,0,0.3);}
-    .ok{color:#7CFC00;}.bad{color:#FF4C4C;}.warn{color:#FFA500;}
-    .score-box{font-weight:bold;margin:10px 0;}
-    #loader{position:fixed;top:0;left:0;width:100%;height:100%;display:flex;align-items:center;justify-content:center;background:rgba(0,0,0,0.8);z-index:1000;flex-direction:column;color:white;font-size:18px;}
-    .spinner{border:5px solid rgba(255,255,255,0.2);border-top:5px solid #00ffff;border-radius:50%;width:70px;height:70px;animation:spin 1s linear infinite;margin-bottom:15px;}
-    @keyframes spin{100%{transform:rotate(360deg);}}
-    #cobweb{position:fixed;top:0;left:0;width:100%;height:100%;z-index:-1;}
-    .container{display:flex;gap:20px;align-items:flex-start;padding:20px;}
-    .column{flex:1;}
-    .ai-fix{font-size:13px;color:#00ffff;margin-left:10px;}
+    :root {
+      --bg: #080b14;
+      --surface: #0f1420;
+      --card: #141928;
+      --border: rgba(255,255,255,0.07);
+      --accent: #6c47ff;
+      --accent2: #ff4f7b;
+      --accent3: #00e5b0;
+      --warn: #ffb300;
+      --danger: #ff3d3d;
+      --ok: #00e5b0;
+      --text: #e8eaf6;
+      --muted: #6b7a99;
+      --font-head: 'Syne', sans-serif;
+      --font-body: 'DM Sans', sans-serif;
+      --nav-h: 72px;
+      --top-h: 60px;
+      --radius: 18px;
+      --radius-sm: 10px;
+    }
+    * { margin: 0; padding: 0; box-sizing: border-box; -webkit-tap-highlight-color: transparent; }
+    html, body { height: 100%; overflow: hidden; background: var(--bg); color: var(--text); font-family: var(--font-body); }
+
+    #app { max-width: 430px; margin: 0 auto; height: 100dvh; display: flex; flex-direction: column; position: relative; overflow: hidden; background: var(--bg); }
+
+    /* TOP BAR */
+    #topbar { height: var(--top-h); display: flex; align-items: center; justify-content: space-between; padding: 0 20px; background: var(--bg); border-bottom: 1px solid var(--border); flex-shrink: 0; position: relative; z-index: 10; }
+    #topbar .logo { font-family: var(--font-head); font-size: 20px; font-weight: 800; background: linear-gradient(135deg, #fff 0%, #a78bfa 100%); -webkit-background-clip: text; -webkit-text-fill-color: transparent; letter-spacing: -0.5px; }
+    #topbar .user-chip { display: flex; align-items: center; gap: 8px; background: var(--card); border: 1px solid var(--border); border-radius: 999px; padding: 5px 12px 5px 5px; cursor: pointer; }
+    #topbar .avatar { width: 28px; height: 28px; border-radius: 50%; background: linear-gradient(135deg, var(--accent), var(--accent2)); display: flex; align-items: center; justify-content: center; font-size: 12px; font-weight: 700; }
+    #topbar .uname { font-size: 12px; font-weight: 500; }
+
+    /* PAGES */
+    #pages { flex: 1; overflow: hidden; position: relative; }
+    .page { position: absolute; inset: 0; overflow-y: auto; overflow-x: hidden; padding: 16px 16px calc(var(--nav-h) + 16px); opacity: 0; transform: translateY(12px); pointer-events: none; transition: opacity 0.28s ease, transform 0.28s ease; -webkit-overflow-scrolling: touch; scrollbar-width: none; }
+    .page::-webkit-scrollbar { display: none; }
+    .page.active { opacity: 1; transform: translateY(0); pointer-events: auto; }
+
+    /* BOTTOM NAV */
+    #nav { height: var(--nav-h); background: var(--surface); border-top: 1px solid var(--border); display: flex; align-items: center; justify-content: space-around; padding: 0 8px; flex-shrink: 0; position: relative; z-index: 20; }
+    .nav-btn { display: flex; flex-direction: column; align-items: center; gap: 4px; cursor: pointer; padding: 8px 12px; border-radius: 12px; transition: all 0.2s; flex: 1; border: none; background: transparent; }
+    .nav-btn .nav-ico { font-size: 22px; line-height: 1; transition: transform 0.2s; }
+    .nav-btn .nav-lbl { font-size: 10px; font-weight: 600; color: var(--muted); letter-spacing: 0.3px; transition: color 0.2s; font-family: var(--font-body); }
+    .nav-btn.active .nav-lbl { color: var(--accent); }
+    .nav-btn.active .nav-ico { transform: scale(1.1); }
+    #qr-nav-btn { position: relative; flex: 0 0 auto; width: 62px; }
+    .qr-fab { width: 62px; height: 62px; border-radius: 50%; background: linear-gradient(135deg, var(--accent), var(--accent2)); border: 3px solid var(--bg); display: flex; align-items: center; justify-content: center; font-size: 26px; cursor: pointer; box-shadow: 0 4px 24px rgba(108,71,255,0.5); transition: transform 0.2s, box-shadow 0.2s; margin-bottom: 6px; }
+    .qr-fab:active { transform: scale(0.93); }
+    #qr-nav-btn .nav-lbl { font-size: 10px; font-weight: 600; color: var(--accent); letter-spacing: 0.3px; text-align: center; font-family: var(--font-body); }
+
+    /* COMMON */
+    .section-title { font-family: var(--font-head); font-size: 22px; font-weight: 800; margin-bottom: 4px; letter-spacing: -0.5px; }
+    .section-sub { font-size: 13px; color: var(--muted); margin-bottom: 18px; }
+    .card { background: var(--card); border: 1px solid var(--border); border-radius: var(--radius); padding: 18px; margin-bottom: 12px; }
+    .card-title { font-family: var(--font-head); font-size: 14px; font-weight: 700; margin-bottom: 12px; }
+    .chip { display: inline-flex; align-items: center; gap: 5px; padding: 4px 12px; border-radius: 999px; font-size: 11px; font-weight: 600; }
+    .chip.red { background: rgba(255,61,61,0.15); color: #ff8080; border: 1px solid rgba(255,61,61,0.25); }
+    .chip.green { background: rgba(0,229,176,0.12); color: var(--ok); border: 1px solid rgba(0,229,176,0.2); }
+    .chip.yellow { background: rgba(255,179,0,0.12); color: var(--warn); border: 1px solid rgba(255,179,0,0.2); }
+    .chip.purple { background: rgba(108,71,255,0.15); color: #a78bfa; border: 1px solid rgba(108,71,255,0.25); }
+    .input-wrap { display: flex; gap: 8px; align-items: flex-start; margin-bottom: 14px; }
+    .inp { flex: 1; background: rgba(255,255,255,0.06); border: 1px solid var(--border); border-radius: var(--radius-sm); padding: 12px 14px; color: var(--text); font-size: 14px; font-family: var(--font-body); outline: none; transition: border-color 0.2s; resize: none; }
+    .inp:focus { border-color: var(--accent); }
+    .inp::placeholder { color: var(--muted); }
+    .btn { padding: 12px 18px; border-radius: var(--radius-sm); border: none; font-size: 13px; font-weight: 600; cursor: pointer; font-family: var(--font-body); transition: all 0.18s; white-space: nowrap; }
+    .btn:active { transform: scale(0.96); }
+    .btn-primary { background: linear-gradient(135deg, var(--accent), #8b5cf6); color: #fff; box-shadow: 0 4px 16px rgba(108,71,255,0.35); }
+    .btn-danger { background: var(--danger); color: #fff; }
+    .btn-outline { background: transparent; border: 1px solid var(--border); color: var(--text); }
+    .btn-sm { padding: 8px 14px; font-size: 12px; }
+    .btn-full { width: 100%; text-align: center; padding: 14px; border-radius: 14px; }
+
+    /* VERDICT */
+    .verdict-box { border-radius: 14px; padding: 16px; margin-top: 12px; border: 1px solid transparent; }
+    .verdict-box.danger { background: rgba(255,61,61,0.1); border-color: rgba(255,61,61,0.25); }
+    .verdict-box.warn { background: rgba(255,179,0,0.08); border-color: rgba(255,179,0,0.2); }
+    .verdict-box.safe { background: rgba(0,229,176,0.08); border-color: rgba(0,229,176,0.2); }
+    .verdict-box.unknown { background: rgba(107,122,153,0.1); border-color: rgba(107,122,153,0.2); }
+    .verdict-label { font-family: var(--font-head); font-size: 18px; font-weight: 800; margin-bottom: 6px; }
+    .verdict-box.danger .verdict-label { color: #ff8080; }
+    .verdict-box.warn .verdict-label { color: var(--warn); }
+    .verdict-box.safe .verdict-label { color: var(--ok); }
+    .verdict-box.unknown .verdict-label { color: var(--muted); }
+    .verdict-summary { font-size: 13px; color: var(--text); margin-bottom: 10px; line-height: 1.5; }
+    .risk-bar { height: 8px; border-radius: 999px; background: rgba(255,255,255,0.08); overflow: hidden; margin: 8px 0 12px; }
+    .risk-fill { height: 100%; border-radius: 999px; transition: width 1s ease; }
+    .flag-list { list-style: none; }
+    .flag-list li { padding: 7px 10px; border-radius: 8px; font-size: 12px; margin-bottom: 5px; line-height: 1.4; }
+    .flag-list li.bad { background: rgba(255,61,61,0.1); color: #fca5a5; }
+    .flag-list li.warn { background: rgba(255,179,0,0.1); color: #fcd34d; }
+    .flag-list li.good { background: rgba(0,229,176,0.08); color: #6ee7b7; }
+    .flag-list li.info { background: rgba(108,71,255,0.1); color: #c4b5fd; }
+
+    /* STATS */
+    .stats-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; margin-bottom: 14px; }
+    .stat-tile { background: var(--card); border: 1px solid var(--border); border-radius: 14px; padding: 16px; text-align: center; }
+    .stat-val { font-family: var(--font-head); font-size: 28px; font-weight: 800; }
+    .stat-lbl { font-size: 10px; font-weight: 600; color: var(--muted); text-transform: uppercase; letter-spacing: 0.6px; margin-top: 2px; }
+    .stat-tile.red .stat-val { color: var(--danger); }
+    .stat-tile.green .stat-val { color: var(--ok); }
+    .stat-tile.yellow .stat-val { color: var(--warn); }
+    .stat-tile.purple .stat-val { color: #a78bfa; }
+
+    /* FEED */
+    .feed-item { display: flex; gap: 10px; align-items: flex-start; padding: 12px 0; border-bottom: 1px solid var(--border); }
+    .feed-item:last-child { border-bottom: none; }
+    .feed-dot { width: 10px; height: 10px; border-radius: 50%; flex-shrink: 0; margin-top: 4px; }
+    .feed-dot.red { background: var(--danger); box-shadow: 0 0 8px var(--danger); }
+    .feed-dot.yellow { background: var(--warn); box-shadow: 0 0 8px var(--warn); }
+    .feed-title { font-size: 13px; font-weight: 600; margin-bottom: 2px; }
+    .feed-meta { font-size: 11px; color: var(--muted); }
+
+    /* PILLS */
+    .pill-row { display: flex; flex-wrap: wrap; gap: 7px; margin-bottom: 12px; }
+    .pill { padding: 6px 12px; background: var(--card); border: 1px solid var(--border); border-radius: 999px; font-size: 12px; font-weight: 500; cursor: pointer; transition: all 0.18s; }
+    .pill:active { background: rgba(108,71,255,0.2); border-color: var(--accent); }
+
+    /* QR PAGE */
+    #page-qr { padding: 0; background: #000; }
+    #page-qr.active { display: flex; flex-direction: column; }
+    .qr-top-bar { display: flex; align-items: center; justify-content: space-between; padding: 16px 20px; background: rgba(0,0,0,0.7); position: absolute; top: 0; left: 0; right: 0; z-index: 5; }
+    .qr-top-bar h2 { font-family: var(--font-head); font-size: 18px; font-weight: 800; color: #fff; }
+    .qr-close { background: rgba(255,255,255,0.1); border: none; color: #fff; width: 36px; height: 36px; border-radius: 50%; font-size: 18px; cursor: pointer; display: flex; align-items: center; justify-content: center; }
+    #qr-video-wrap { position: relative; width: 100%; height: 100%; display: flex; align-items: center; justify-content: center; background: #000; }
+    #qr-video { width: 100%; height: 100%; object-fit: cover; }
+    .qr-overlay { position: absolute; inset: 0; display: flex; align-items: center; justify-content: center; pointer-events: none; }
+    .qr-frame { width: 220px; height: 220px; position: relative; }
+    .qr-frame::before, .qr-frame::after, .qr-frame .corner-br, .qr-frame .corner-bl { content: ''; position: absolute; width: 36px; height: 36px; border-color: #fff; border-style: solid; }
+    .qr-frame::before { top: 0; left: 0; border-width: 3px 0 0 3px; border-radius: 4px 0 0 0; }
+    .qr-frame::after { top: 0; right: 0; border-width: 3px 3px 0 0; border-radius: 0 4px 0 0; }
+    .qr-frame .corner-br { bottom: 0; right: 0; border-width: 0 3px 3px 0; border-radius: 0 0 4px 0; }
+    .qr-frame .corner-bl { bottom: 0; left: 0; border-width: 0 0 3px 3px; border-radius: 0 0 0 4px; }
+    .scan-line { position: absolute; left: 0; right: 0; height: 2px; background: linear-gradient(90deg, transparent, var(--accent), transparent); animation: scanMove 2s linear infinite; top: 10px; }
+    @keyframes scanMove { 0% { top: 10px; } 100% { top: calc(100% - 10px); } }
+    .qr-hint { position: absolute; bottom: calc(var(--nav-h) + 20px); left: 0; right: 0; text-align: center; font-size: 13px; color: rgba(255,255,255,0.7); }
+    .qr-dim { position: absolute; inset: 0; background: rgba(0,0,0,0.55); display: flex; align-items: center; justify-content: center; pointer-events: none; }
+    .qr-dim-hole { width: 220px; height: 220px; border-radius: 4px; box-shadow: 0 0 0 2000px rgba(0,0,0,0.55); }
+    #qr-result-overlay { position: absolute; inset: 0; background: rgba(0,0,0,0.9); z-index: 20; display: none; flex-direction: column; align-items: center; justify-content: center; padding: 24px; overflow-y: auto; }
+    #qr-result-overlay.show { display: flex; }
+    .qr-res-icon { font-size: 56px; margin-bottom: 12px; }
+    .qr-res-title { font-family: var(--font-head); font-size: 24px; font-weight: 800; margin-bottom: 6px; }
+    .qr-res-sub { font-size: 14px; color: var(--muted); text-align: center; margin-bottom: 20px; line-height: 1.5; }
+    .qr-upi-info { background: var(--card); border: 1px solid var(--border); border-radius: 14px; padding: 16px; width: 100%; margin-bottom: 20px; }
+    .qr-upi-row { display: flex; justify-content: space-between; align-items: center; padding: 6px 0; border-bottom: 1px solid var(--border); font-size: 13px; }
+    .qr-upi-row:last-child { border-bottom: none; }
+    .qr-upi-row .lbl { color: var(--muted); }
+    .qr-upi-row .val { font-weight: 600; word-break: break-all; text-align: right; max-width: 60%; }
+    .pay-apps { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; width: 100%; margin-bottom: 14px; }
+    .pay-app-btn { display: flex; align-items: center; gap: 8px; background: var(--card); border: 1px solid var(--border); border-radius: 12px; padding: 12px; cursor: pointer; text-decoration: none; color: var(--text); font-size: 13px; font-weight: 600; transition: all 0.18s; }
+    .pay-app-btn:active { background: rgba(108,71,255,0.2); border-color: var(--accent); }
+    .pay-app-btn .app-ico { font-size: 24px; }
+
+    /* MORE / MENU */
+    .menu-list { display: flex; flex-direction: column; gap: 1px; }
+    .menu-row { display: flex; align-items: center; gap: 14px; background: var(--card); padding: 16px; cursor: pointer; transition: background 0.15s; }
+    .menu-row:first-child { border-radius: 14px 14px 0 0; }
+    .menu-row:last-child { border-radius: 0 0 14px 14px; }
+    .menu-row:only-child { border-radius: 14px; }
+    .menu-row:active { background: rgba(108,71,255,0.12); }
+    .menu-ico { font-size: 22px; width: 42px; height: 42px; border-radius: 10px; display: flex; align-items: center; justify-content: center; }
+    .menu-ico.purple { background: rgba(108,71,255,0.15); }
+    .menu-ico.red { background: rgba(255,61,61,0.12); }
+    .menu-ico.green { background: rgba(0,229,176,0.1); }
+    .menu-ico.yellow { background: rgba(255,179,0,0.1); }
+    .menu-ico.blue { background: rgba(59,130,246,0.12); }
+    .menu-body { flex: 1; }
+    .menu-row-title { font-size: 14px; font-weight: 600; margin-bottom: 1px; }
+    .menu-row-sub { font-size: 12px; color: var(--muted); }
+    .menu-row-arrow { color: var(--muted); font-size: 14px; }
+
+    /* SUBPAGES */
+    .subpage { position: absolute; inset: 0; background: var(--bg); z-index: 50; overflow-y: auto; transform: translateX(100%); transition: transform 0.3s cubic-bezier(0.4,0,0.2,1); padding: 16px 16px calc(var(--nav-h) + 16px); scrollbar-width: none; }
+    .subpage::-webkit-scrollbar { display: none; }
+    .subpage.open { transform: translateX(0); }
+    .sub-top { display: flex; align-items: center; gap: 12px; margin-bottom: 20px; flex-wrap: wrap; }
+    .sub-top h2 { font-family: var(--font-head); font-size: 18px; font-weight: 800; flex: 1; }
+    .back-btn { background: var(--card); border: 1px solid var(--border); border-radius: 10px; padding: 8px 12px; font-size: 14px; cursor: pointer; color: var(--text); }
+
+    /* TOAST */
+    #toast { position: fixed; bottom: calc(var(--nav-h) + 16px); left: 50%; transform: translateX(-50%) translateY(16px); background: var(--card); border: 1px solid var(--border); border-radius: 12px; padding: 10px 18px; font-size: 13px; z-index: 999; opacity: 0; transition: all 0.3s ease; white-space: nowrap; pointer-events: none; }
+    #toast.show { opacity: 1; transform: translateX(-50%) translateY(0); }
+
+    /* LOADER */
+    #loader { display: none; position: fixed; inset: 0; background: rgba(0,0,0,0.65); z-index: 9999; align-items: center; justify-content: center; flex-direction: column; gap: 14px; backdrop-filter: blur(3px); }
+    .spin { width: 44px; height: 44px; border: 3px solid rgba(255,255,255,0.1); border-top-color: var(--accent); border-radius: 50%; animation: spin 0.8s linear infinite; }
+    @keyframes spin { to { transform: rotate(360deg); } }
+    #loader-txt { font-size: 14px; font-weight: 500; color: var(--muted); }
+
+    /* HOME */
+    .hero-banner { background: linear-gradient(135deg, rgba(108,71,255,0.2) 0%, rgba(255,79,123,0.12) 100%); border: 1px solid rgba(108,71,255,0.2); border-radius: var(--radius); padding: 20px; margin-bottom: 12px; position: relative; overflow: hidden; }
+    .hero-banner::before { content: '🛡️'; position: absolute; right: -10px; top: -10px; font-size: 90px; opacity: 0.06; }
+    .hero-banner h1 { font-family: var(--font-head); font-size: 20px; font-weight: 800; margin-bottom: 4px; }
+    .hero-banner p { font-size: 12px; color: var(--muted); line-height: 1.5; }
+    .quick-input-wrap { background: var(--card); border: 1px solid var(--border); border-radius: var(--radius); padding: 16px; margin-bottom: 12px; }
+    .quick-label { font-size: 11px; font-weight: 600; text-transform: uppercase; letter-spacing: 0.6px; color: var(--muted); margin-bottom: 8px; }
+
+    /* AUDIT */
+    .audit-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 8px; }
+    .audit-cell { background: var(--card); border: 1px solid var(--border); border-radius: 12px; padding: 12px; }
+    .audit-cell h4 { font-size: 11px; font-weight: 700; margin-bottom: 6px; color: var(--muted); text-transform: uppercase; letter-spacing: 0.3px; }
+    .audit-cell .cell-content { font-size: 12px; color: var(--text); }
+
+    /* REPORT */
+    .form-label { font-size: 12px; font-weight: 600; color: var(--muted); text-transform: uppercase; letter-spacing: 0.4px; margin-bottom: 6px; display: block; }
+    .form-select { width: 100%; background: rgba(255,255,255,0.06); border: 1px solid var(--border); border-radius: var(--radius-sm); padding: 12px 14px; color: var(--text); font-size: 14px; font-family: var(--font-body); outline: none; margin-bottom: 12px; }
+    .form-select option { background: #141928; }
+
+    /* CALL SIM */
+    .call-sim { background: #050810; border-radius: 12px; padding: 14px; font-family: 'Courier New', monospace; font-size: 12px; line-height: 1.8; max-height: 250px; overflow-y: auto; border: 1px solid rgba(108,71,255,0.2); }
+    .line-caller { color: #f87171; }
+    .line-ai { color: #6ee7b7; }
+    .line-system { color: #a78bfa; font-style: italic; }
+    .line-warn { color: var(--warn); font-weight: bold; }
+    .sim-btns { display: flex; gap: 8px; flex-wrap: wrap; margin-top: 12px; }
+
+    /* HISTORY */
+    .hist-item { background: var(--card); border: 1px solid var(--border); border-radius: 12px; padding: 14px; margin-bottom: 8px; }
+    .hist-item .h-url { font-size: 12px; color: var(--muted); margin-bottom: 4px; word-break: break-all; }
+    .hist-item .h-verdict { font-family: var(--font-head); font-size: 14px; font-weight: 700; }
+    .hist-item .h-time { font-size: 11px; color: var(--muted); margin-top: 4px; }
+
+    @keyframes pulse { 0%,100%{opacity:1} 50%{opacity:0.5} }
   </style>
 </head>
 <body>
-  <!-- Sidebar -->
-<div id="sidebar" class="fixed top-0 left-0 h-full w-64 bg-gray-900 text-white transform -translate-x-full transition-transform duration-300 z-50">
-  <div class="p-4 border-b border-gray-700 flex justify-between items-center">
-    <h2 class="text-lg font-bold">History</h2>
-   <!-- Sidebar Close Button -->
-<button onclick="toggleSidebar()" 
-  class="absolute top-4 right-4 z-[9999] bg-gray-800 text-white px-3 py-2 rounded-lg shadow hover:bg-gray-700">
-  ✖
-</button>
-</div>
-  <div id="historyList" class="overflow-y-auto h-[calc(100%-60px)] p-4 space-y-3 text-sm">
-    <!-- History items will load here -->
-  </div>
-</div>
+<div id="app">
 
-<!-- Sidebar Toggle Button -->
-
-<!-- Sidebar Toggle Button -->
-<button onclick="toggleSidebar()" 
-  class="fixed top-4 left-4 z-[9999] bg-gray-800 text-white px-3 py-2 rounded-lg shadow hover:bg-gray-700">
-  ☰
-</button>
-
-
-<div id="mainContent" class="transition-all duration-300 ml-0"></div>
-
-  <div id="loader" style="display:none;">
-    <div class="spinner"></div>Scanning in progress... Please wait.
-  </div>
-  <canvas id="cobweb"></canvas>
-
-  <h1>🔐 Security & ⚡ Performance & 🌐 SEO Scanner</h1>
-  <div style="text-align:center;">
-    <input id="urlInput" placeholder="Enter website URL (example.com or https://example.com)" />
-    <button onclick="runAll()">🚀 Run All Scans</button>
-    <button onclick="generateReport()">📄 Security Report</button>
-    <button onclick="generatePerformanceReport()">📄 Performance Report</button>
-    <button onclick="generateSEOReport()">📄 SEO Report</button>
-  </div>
-
-  <div class="container">
-    <!-- Security -->
-    <div class="column">
-      <h2>🔐 Security</h2>
-      <div id="sslResults" class="section"></div>
-      <div id="headerResults" class="section"></div>
-      <div id="libsResults" class="section"></div>
-      <div id="xssResults" class="section"></div>
-      <div id="portsResults" class="section"></div>
-      <div id="csrfResults" class="section"></div>
-      <div id="sensitiveResults" class="section"></div>
-      <div id="charts" class="section"><h2>📊 Security Overview</h2><canvas id="scoreChart"></canvas></div>
-      <div id="aiSecurity" class="section"><h2>🤖 AI Feedback (Security)</h2><p>⚡ Awaiting...</p></div>
-    </div>
-
-    <!-- Performance -->
-    <div class="column">
-      <h2>⚡ Performance</h2>
-      <div id="pageloadResults" class="section"></div>
-      <div id="serverTimeResults" class="section"></div>
-      <div id="imageResults" class="section"></div>
-      <div id="jsCssResults" class="section"></div>
-      <div id="resourceResults" class="section"></div>
-      <div id="perfCharts" class="section"><h2>📊 Performance Overview</h2><canvas id="perfChart"></canvas></div>
-      <div id="aiPerf" class="section"><h2>🤖 AI Feedback (Performance)</h2><p>⚡ Awaiting...</p></div>
-    </div>
-
-    <!-- SEO -->
-    <div class="column">
-      <h2>🌐 SEO</h2>
-      <div id="metaResults" class="section"></div>
-      <div id="keywordResults" class="section"></div>
-      <div id="headingResults" class="section"></div>
-      <div id="urlResults" class="section"></div>
-      <div id="mobileResults" class="section"></div>
-      <div id="brokenResults" class="section"></div>
-      <div id="seoImageResults" class="section"></div>
-      <div id="sitemapResults" class="section"></div>
-      <div id="backlinkResults" class="section"></div>
-      <div id="crawlResults" class="section"></div>
-      <div id="seoCharts" class="section"><h2>📊 SEO Overview</h2><canvas id="seoChart"></canvas></div>
-      <div id="aiSEO" class="section"><h2>🤖 AI Feedback (SEO)</h2><p>⚡ Awaiting...</p></div>
+  <!-- TOP BAR -->
+  <div id="topbar">
+    <div class="logo" id="topbar-logo">🛡️ ScamShield</div>
+    <div style="display:flex;align-items:center;gap:8px;">
+      <select id="global-lang" onchange="setAppLanguage(this.value)" style="background:var(--card);border:1px solid var(--border);border-radius:8px;padding:4px 8px;color:var(--text);font-size:11px;font-family:var(--font-body);cursor:pointer;outline:none;">
+        <option value="en-IN">🇮🇳 EN</option>
+        <option value="hi-IN">🇮🇳 HI</option>
+        <option value="kn-IN">🇮🇳 KN</option>
+      </select>
+      <div class="user-chip" onclick="openSub('sub-profile')">
+        <div class="avatar" id="av-initial">U</div>
+        <span class="uname" id="topbar-name">User</span>
+      </div>
     </div>
   </div>
 
-  <div id="aiFinal" class="section"><h2>🤖 Overall AI Feedback</h2><p>⚡ Awaiting scans...</p></div>
-</div>
+  <!-- PAGES -->
+  <div id="pages">
+
+    <!-- ========== HOME ========== -->
+    <div class="page active" id="page-home">
+      <!-- Add to Home Screen Banner -->
+      <div id="ath-banner" style="display:none;background:linear-gradient(135deg,rgba(0,229,176,0.15),rgba(108,71,255,0.15));border:1px solid rgba(0,229,176,0.25);border-radius:var(--radius);padding:14px 16px;margin-bottom:12px;align-items:center;gap:12px;">
+        <span style="font-size:28px;flex-shrink:0;">📲</span>
+        <div style="flex:1;">
+          <div style="font-family:var(--font-head);font-size:13px;font-weight:700;margin-bottom:2px;" id="ath-title">Add to Home Screen</div>
+          <div style="font-size:11px;color:var(--muted);" id="ath-sub">Install ScamShield for quick access</div>
+        </div>
+        <button id="ath-btn" onclick="triggerInstall()" class="btn btn-primary btn-sm" style="flex-shrink:0;padding:8px 14px;">📲 Install</button>
+        <button onclick="document.getElementById('ath-banner').style.display='none'" style="background:none;border:none;color:var(--muted);font-size:18px;cursor:pointer;flex-shrink:0;padding:4px;">✕</button>
+      </div>
+
+      <div class="hero-banner">
+        <h1>Hi, <span id="hero-name">User</span> 👋</h1>
+        <p>Your real-time scam protection hub. India saw 11.28L+ cybercrime complaints in 2023.</p>
+      </div>
+      <div class="stats-grid">
+        <div class="stat-tile red"><div class="stat-val" id="s-scams">0</div><div class="stat-lbl">Scams Blocked</div></div>
+        <div class="stat-tile green"><div class="stat-val" id="s-safe">100%</div><div class="stat-lbl">Protection Rate</div></div>
+        <div class="stat-tile yellow"><div class="stat-val" id="s-urls">0</div><div class="stat-lbl">Links Scanned</div></div>
+        <div class="stat-tile purple"><div class="stat-val" id="s-msgs">0</div><div class="stat-lbl">Messages Checked</div></div>
+      </div>
+      <div class="quick-input-wrap">
+        <div class="quick-label">⚡ Quick Threat Check</div>
+        <div class="input-wrap">
+          <input class="inp" id="quick-inp" placeholder="Paste URL / UPI ID / phone / message..." />
+          <button class="btn btn-primary" onclick="quickCheck()">Go</button>
+        </div>
+        <div id="quick-res"></div>
+      </div>
+      <div class="card">
+        <div class="card-title">🔴 Recent Community Alerts</div>
+        <div id="dash-feed">
+          <div class="feed-item"><div class="feed-dot red"></div><div><div class="feed-title">Fake SBI KYC Call — +91 98XXX XXXXX</div><div class="feed-meta">Bank Impersonation · 5 min ago · 47 reports</div></div></div>
+          <div class="feed-item"><div class="feed-dot yellow"></div><div><div class="feed-title">Fake FedEx Parcel SMS with phishing link</div><div class="feed-meta">Phishing SMS · 12 min ago · 23 reports</div></div></div>
+          <div class="feed-item"><div class="feed-dot red"></div><div><div class="feed-title">TRAI Disconnection Scam — Mumbai/Delhi</div><div class="feed-meta">TRAI Impersonation · 1 hr ago · 190 reports</div></div></div>
+        </div>
+      </div>
+      <div class="card">
+        <div class="card-title">📊 Threat Distribution</div>
+        <canvas id="home-chart" height="160"></canvas>
+      </div>
+    </div>
+
+    <!-- ========== SCAN LINK ========== -->
+    <div class="page" id="page-scan">
+      <div class="section-title">🔗 Link Scanner</div>
+      <div class="section-sub">Detect phishing, spoofed domains & malicious URLs</div>
+      <div class="card">
+        <div class="input-wrap">
+          <input class="inp" id="phish-url" placeholder="Paste URL (e.g. sbi-kyc.xyz/login)" />
+        </div>
+        <button class="btn btn-primary btn-full" onclick="scanPhishing()">🔍 Scan This Link</button>
+      </div>
+      <div id="phish-res"></div>
+      <div class="card" style="margin-top:4px;">
+        <div class="card-title">⚠️ Common Phishing Patterns</div>
+        <ul class="flag-list">
+          <li class="bad">🏦 sbi-kyc-update.com, hdfcbank-verify.in</li>
+          <li class="bad">📦 fedex-parcel-track.xyz, amazon-delivery.link</li>
+          <li class="bad">🏛️ incometax-refund.in, trai-notice.online</li>
+          <li class="warn">🔗 Links with IP addresses instead of domains</li>
+          <li class="good">✓ Always hover/check before clicking</li>
+        </ul>
+      </div>
+    </div>
+
+    <!-- ========== QR SCANNER ========== -->
+    <div class="page" id="page-qr">
+      <div class="qr-top-bar">
+        <h2>📷 UPI QR Scanner</h2>
+        <button class="qr-close" onclick="stopQR(); showPage('home')">✕</button>
+      </div>
+      <div id="qr-video-wrap">
+        <video id="qr-video" playsinline autoplay muted></video>
+        <canvas id="qr-canvas" style="display:none;"></canvas>
+        <div class="qr-dim"><div class="qr-dim-hole"></div></div>
+        <div class="qr-overlay">
+          <div class="qr-frame">
+            <div class="corner-br"></div>
+            <div class="corner-bl"></div>
+            <div class="scan-line"></div>
+          </div>
+        </div>
+        <div class="qr-hint">Point camera at UPI QR code</div>
+        <div id="qr-result-overlay">
+          <div class="qr-res-icon" id="qr-ico">✅</div>
+          <div class="qr-res-title" id="qr-rtitle">UPI Verified</div>
+          <div class="qr-res-sub" id="qr-rsub">This UPI ID appears safe to pay.</div>
+          <div style="display:flex;align-items:center;gap:8px;justify-content:center;margin:10px 0;">
+            <button id="qr-speak-btn" onclick="speakQRResult()" style="background:rgba(255,255,255,0.15);border:1px solid rgba(255,255,255,0.3);border-radius:8px;padding:7px 16px;cursor:pointer;color:#fff;font-size:13px;font-family:var(--font-body);">🔊 Read Aloud</button>
+            <select id="qr-lang" onchange="setAppLanguage(this.value)" style="background:rgba(0,0,0,0.5);border:1px solid rgba(255,255,255,0.2);border-radius:8px;padding:6px 10px;color:#fff;font-size:12px;font-family:var(--font-body);">
+              <option value="en-IN">🇮🇳 EN</option>
+              <option value="hi-IN">🇮🇳 HI</option>
+              <option value="kn-IN">🇮🇳 KN</option>
+            </select>
+          </div>
+          <div class="qr-upi-info" id="qr-info"></div>
+          <div class="pay-apps" id="pay-apps-grid"></div>
+          <button class="btn btn-outline btn-full" id="qr-scan-again" onclick="retryQR()" style="width:100%">📷 Scan Again</button>
+        </div>
+      </div>
+    </div>
+
+    <!-- ========== MESSAGES ========== -->
+    <div class="page" id="page-msg">
+      <div class="section-title">💬 Message Analyzer</div>
+      <div class="section-sub">AI-powered scam detection for SMS & WhatsApp</div>
+      <div class="card">
+        <div class="pill-row">
+          <span class="pill" onclick="loadSample('bank')">📋 Bank Scam</span>
+          <span class="pill" onclick="loadSample('trai')">📡 TRAI Scam</span>
+          <span class="pill" onclick="loadSample('prize')">🎰 Prize Scam</span>
+        </div>
+        <div class="input-wrap" style="flex-direction:column;">
+          <textarea class="inp" id="msg-inp" rows="5" placeholder="Paste suspicious SMS or WhatsApp message here..."></textarea>
+        </div>
+        <button class="btn btn-primary btn-full" onclick="analyzeMsg()">🤖 Analyze with AI</button>
+      </div>
+      <div id="msg-res"></div>
+      <div class="card">
+        <div class="card-title">🔴 Scam Red Flags</div>
+        <ul class="flag-list">
+          <li class="bad">Asks for OTP, PIN, CVV or password</li>
+          <li class="bad">Threatens account block / arrest / legal action</li>
+          <li class="bad">Demands action within hours/minutes</li>
+          <li class="bad">Claims you won a prize you never entered</li>
+          <li class="warn">Impersonates SBI, TRAI, Airtel, Amazon</li>
+          <li class="warn">Contains unfamiliar links or shortened URLs</li>
+        </ul>
+      </div>
+    </div>
+
+    <!-- ========== MORE ========== -->
+    <div class="page" id="page-more">
+      <div class="section-title">More Tools</div>
+      <div class="section-sub">All ScamShield features</div>
+      <div class="menu-list" style="margin-bottom:14px;">
+        <div class="menu-row" onclick="openSub('sub-upi')">
+          <div class="menu-ico purple">💳</div>
+          <div class="menu-body"><div class="menu-row-title">UPI Fraud Checker</div><div class="menu-row-sub">Verify UPI IDs for fraud patterns</div></div>
+          <div class="menu-row-arrow">›</div>
+        </div>
+        <div class="menu-row" onclick="openSub('sub-call')">
+          <div class="menu-ico red">📞</div>
+          <div class="menu-body"><div class="menu-row-title">Call Shield</div><div class="menu-row-sub">Check phone numbers & AI call simulator</div></div>
+          <div class="menu-row-arrow">›</div>
+        </div>
+        <div class="menu-row" onclick="openSub('sub-audit')">
+          <div class="menu-ico blue">🌐</div>
+          <div class="menu-body"><div class="menu-row-title">Website Security Audit</div><div class="menu-row-sub">SSL, headers, XSS, ports & more</div></div>
+          <div class="menu-row-arrow">›</div>
+        </div>
+        <div class="menu-row" onclick="openSub('sub-history')">
+          <div class="menu-ico purple">🕑</div>
+          <div class="menu-body"><div class="menu-row-title">Scan History</div><div class="menu-row-sub">View your past scans</div></div>
+          <div class="menu-row-arrow">›</div>
+        </div>
+        <div class="menu-row" onclick="openSub('sub-reports')">
+          <div class="menu-ico yellow">📋</div>
+          <div class="menu-body"><div class="menu-row-title">Community Reports</div><div class="menu-row-sub">Submit & browse scam reports</div></div>
+          <div class="menu-row-arrow">›</div>
+        </div>
+        <div class="menu-row" onclick="openSub('sub-chat')">
+          <div class="menu-ico green">🤖</div>
+          <div class="menu-body"><div class="menu-row-title">ScamShield AI Chat</div><div class="menu-row-sub">Ask anything about scams</div></div>
+          <div class="menu-row-arrow">›</div>
+        </div>
+        <div class="menu-row" onclick="openSub('sub-filescan')">
+          <div class="menu-ico blue">🛡️</div>
+          <div class="menu-body"><div class="menu-row-title">File Scanner</div><div class="menu-row-sub">Scan files for viruses & malware via VirusTotal</div></div>
+          <div class="menu-row-arrow">›</div>
+        </div>
+      </div>
+      <div class="menu-list">
+        <div class="menu-row" onclick="openSub('sub-profile')">
+          <div class="menu-ico purple">👤</div>
+          <div class="menu-body"><div class="menu-row-title">Profile</div><div class="menu-row-sub" id="profile-email-preview">—</div></div>
+          <div class="menu-row-arrow">›</div>
+        </div>
+        <div class="menu-row" onclick="logout()">
+          <div class="menu-ico red">🚪</div>
+          <div class="menu-body"><div class="menu-row-title" style="color:var(--danger);">Logout</div><div class="menu-row-sub">Sign out of ScamShield</div></div>
+          <div class="menu-row-arrow">›</div>
+        </div>
+      </div>
+    </div>
+
+    <!-- ===== SUBPAGES ===== -->
+
+    <!-- File Scanner -->
+    <div class="subpage" id="sub-filescan">
+      <div class="sub-top">
+        <button class="back-btn" onclick="closeSub('sub-filescan');fsReset()">‹ Back</button>
+        <h2>🛡️ File Scanner</h2>
+      </div>
+
+      <!-- TTS permission banner -->
+      <div id="fs-tts-banner" style="display:none;align-items:center;gap:10px;background:rgba(255,179,0,0.08);border:1px solid rgba(255,179,0,0.2);border-radius:12px;padding:10px 14px;margin-bottom:12px;font-size:12px;color:var(--warn);">
+        <span style="font-size:18px;flex-shrink:0;">🔇</span>
+        <span style="flex:1;line-height:1.4;">Enable audio to hear results read aloud.</span>
+        <button onclick="fsEnableTTS()" style="background:rgba(255,179,0,0.15);border:1px solid rgba(255,179,0,0.3);color:var(--warn);border-radius:8px;padding:5px 10px;font-size:11px;font-weight:700;cursor:pointer;font-family:var(--font-body);white-space:nowrap;">Enable</button>
+      </div>
+
+      <!-- Drop zone -->
+      <div class="card" id="fs-drop-zone" onclick="document.getElementById('fs-file-input').click()"
+           ondragover="event.preventDefault();this.style.borderColor='var(--accent)'"
+           ondragleave="this.style.borderColor=''"
+           ondrop="event.preventDefault();this.style.borderColor='';if(event.dataTransfer.files[0])fsSetFile(event.dataTransfer.files[0])"
+           style="border:1.5px dashed rgba(108,71,255,0.3);text-align:center;padding:28px 16px;cursor:pointer;transition:border-color 0.2s;background:rgba(108,71,255,0.03);">
+        <input type="file" id="fs-file-input" style="display:none;" onchange="if(this.files[0])fsSetFile(this.files[0])">
+        <div style="font-size:40px;margin-bottom:10px;">📁</div>
+        <div style="font-weight:700;font-size:14px;margin-bottom:4px;">Tap or drop a file to scan</div>
+        <div style="font-size:11px;color:var(--muted);">APK · PDF · EXE · IMG · DOCX · Any format</div>
+      </div>
+
+      <!-- File preview -->
+      <div class="card" id="fs-file-preview" style="display:none;flex-direction:row;align-items:center;gap:12px;padding:12px 14px;">
+        <span id="fs-preview-ico" style="font-size:28px;">📄</span>
+        <div style="flex:1;min-width:0;">
+          <div id="fs-preview-name" style="font-weight:700;font-size:13px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;"></div>
+          <div id="fs-preview-size" style="font-size:11px;color:var(--muted);font-family:monospace;"></div>
+        </div>
+        <button onclick="fsReset()" style="background:none;border:none;color:var(--muted);font-size:20px;cursor:pointer;padding:4px;line-height:1;">✕</button>
+      </div>
+
+      <!-- Scan button -->
+      <button class="btn btn-primary btn-full" id="fs-scan-btn" onclick="fsStartScan()" style="margin-bottom:10px;font-size:14px;display:flex;align-items:center;justify-content:center;gap:8px;">
+        <span>🔍</span> Scan File with VirusTotal
+      </button>
+
+      <!-- Progress bar -->
+      <div id="fs-progress-wrap" style="display:none;margin-bottom:10px;">
+        <div style="display:flex;justify-content:space-between;font-size:10px;color:var(--muted);font-family:monospace;margin-bottom:5px;">
+          <span id="fs-progress-label">Uploading...</span>
+          <span id="fs-progress-pct">0%</span>
+        </div>
+        <div style="height:4px;background:rgba(255,255,255,0.06);border-radius:999px;overflow:hidden;">
+          <div id="fs-progress-fill" style="height:100%;background:linear-gradient(90deg,var(--accent),var(--accent2));border-radius:999px;width:0%;transition:width 0.4s ease;"></div>
+        </div>
+      </div>
+
+      <!-- Result card -->
+      <div class="card" id="fs-result-card" style="display:none;">
+        <div style="display:flex;align-items:center;gap:14px;margin-bottom:14px;">
+          <!-- Score ring -->
+          <div id="fs-score-ring" style="width:72px;height:72px;border-radius:50%;border:3px solid rgba(255,255,255,0.1);display:flex;flex-direction:column;align-items:center;justify-content:center;flex-shrink:0;">
+            <div id="fs-score-val" style="font-family:var(--font-head);font-size:17px;font-weight:800;line-height:1;">--</div>
+            <div style="font-size:8px;color:var(--muted);text-transform:uppercase;letter-spacing:0.5px;">safety</div>
+          </div>
+          <div style="flex:1;min-width:0;">
+            <div id="fs-status-chip" class="chip" style="margin-bottom:6px;">Scanning...</div>
+            <div id="fs-result-title" style="font-family:var(--font-head);font-size:16px;font-weight:800;margin-bottom:3px;"></div>
+            <div id="fs-result-desc" style="font-size:12px;color:var(--muted);line-height:1.5;"></div>
+          </div>
+        </div>
+
+        <!-- Engine stats -->
+        <div id="fs-stats-row" class="stats-grid" style="display:none;grid-template-columns:repeat(3,1fr);margin-bottom:12px;">
+          <div class="stat-tile red"><div class="stat-val" id="fs-stat-mal">0</div><div class="stat-lbl">Malicious</div></div>
+          <div class="stat-tile yellow"><div class="stat-val" id="fs-stat-sus">0</div><div class="stat-lbl">Suspicious</div></div>
+          <div class="stat-tile green"><div class="stat-val" id="fs-stat-clean">0</div><div class="stat-lbl">Clean</div></div>
+        </div>
+
+        <!-- Action buttons -->
+        <div style="display:flex;gap:8px;flex-wrap:wrap;">
+          <button id="fs-speak-btn" onclick="fsToggleSpeak()" class="btn btn-outline btn-sm" style="flex:1;display:flex;align-items:center;justify-content:center;gap:6px;border-color:rgba(108,71,255,0.3);color:#a78bfa;">
+            🔊 Read Aloud
+          </button>
+          <button onclick="fsDownloadReport()" class="btn btn-outline btn-sm" style="flex:1;display:flex;align-items:center;justify-content:center;gap:6px;border-color:rgba(0,229,176,0.3);color:var(--ok);">
+            ⬇ Report
+          </button>
+          <button onclick="fsReset()" class="btn btn-outline btn-sm" style="flex:1;display:flex;align-items:center;justify-content:center;gap:6px;">
+            ↺ New
+          </button>
+        </div>
+      </div>
+
+      <!-- Log terminal -->
+      <div class="call-sim" id="fs-log" style="margin-top:10px;font-size:11px;max-height:90px;display:none;">
+        &gt; System ready
+      </div>
+    </div>
+
+    <!-- UPI Checker -->
+    <div class="subpage" id="sub-upi">
+      <div class="sub-top">
+        <button class="back-btn" onclick="closeSub('sub-upi')">‹ Back</button>
+        <h2>💳 UPI Fraud Checker</h2>
+        <select id="upi-lang" class="inp" style="flex:0 0 auto;max-width:105px;font-size:11px;padding:5px 8px;margin:0;" onchange="setAppLanguage(this.value)">
+          <option value="en-IN">🇮🇳 English</option>
+          <option value="hi-IN">🇮🇳 Hindi</option>
+          <option value="kn-IN">🇮🇳 Kannada</option>
+        </select>
+      </div>
+      <div class="card">
+        <div class="input-wrap">
+          <input class="inp" id="upi-inp" placeholder="UPI ID (e.g. support@icici, refund@ybl)" />
+          <button class="btn btn-primary" onclick="checkUPI()">Check</button>
+        </div>
+        <div style="font-size:12px;color:var(--muted);">Checks: impersonation keywords, handle patterns, bank spoofing</div>
+      </div>
+      <div id="upi-res"></div>
+      <div class="card" style="margin-top:4px;">
+        <div class="card-title">🚨 High-Risk UPI Handles</div>
+        <ul class="flag-list">
+          <li class="bad">support@*, refund@*, helpdesk@*, claim@*</li>
+          <li class="bad">Handles with "sbi", "hdfc" in unofficial bank suffix</li>
+          <li class="bad">prize@ybl, lottery@upi, winner@paytm</li>
+          <li class="good">yourname@okicici, mobile@paytm — personal format ✅</li>
+        </ul>
+      </div>
+    </div>
+
+    <!-- Call Shield -->
+    <div class="subpage" id="sub-call">
+      <div class="sub-top">
+        <button class="back-btn" onclick="closeSub('sub-call')">‹ Back</button>
+        <h2>📞 Call Shield</h2>
+      </div>
+      <div style="background:linear-gradient(135deg,rgba(255,61,61,0.15),rgba(108,71,255,0.15));border:1px solid rgba(255,61,61,0.3);border-radius:var(--radius);padding:16px;margin-bottom:12px;">
+        <div style="display:flex;align-items:center;gap:10px;margin-bottom:10px;">
+          <span style="font-size:28px;">🛡️</span>
+          <div>
+            <div style="font-family:var(--font-head);font-size:15px;font-weight:800;color:#fff;">Live Call Scam Detection</div>
+            <div style="font-size:12px;color:var(--muted);">Equal AI detects scam calls in real-time on your device</div>
+          </div>
+        </div>
+        <button class="btn btn-danger btn-full" onclick="openEqualAI()" style="background:linear-gradient(135deg,#ff3d3d,#c0392b);font-size:14px;display:flex;align-items:center;justify-content:center;gap:8px;">
+          <span>🔴</span> Open Equal AI — Live Call Scam Guard
+        </button>
+        <div style="font-size:11px;color:var(--muted);text-align:center;margin-top:8px;">App must be installed on your device</div>
+      </div>
+      <div class="card">
+        <div class="card-title">🔍 Phone Number Risk Check</div>
+        <div class="input-wrap">
+          <input class="inp" id="phone-inp" placeholder="+91 98765 43210" />
+          <button class="btn btn-primary" onclick="checkPhone()">Check</button>
+        </div>
+        <div id="phone-res"></div>
+      </div>
+      <div class="card">
+        <div class="card-title">🎙️ AI Call Simulator</div>
+        <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:10px;">
+          <p style="font-size:12px;color:var(--muted);">See how AI handles a scam call in real-time:</p>
+          <select id="sim-lang" class="inp" style="flex:0 0 auto;max-width:110px;font-size:12px;padding:6px 10px;margin-bottom:0;" onchange="setAppLanguage(this.value)">
+            <option value="en-IN">🇮🇳 English</option>
+            <option value="hi-IN">🇮🇳 Hindi</option>
+            <option value="kn-IN">🇮🇳 Kannada</option>
+          </select>
+        </div>
+        <div class="call-sim" id="call-sim"></div>
+        <div class="sim-btns">
+          <button class="btn btn-primary btn-sm" onclick="runSim('bank')">▶ Bank Scam</button>
+          <button class="btn btn-outline btn-sm" onclick="runSim('trai')">▶ TRAI Scam</button>
+          <button class="btn btn-outline btn-sm" onclick="runSim('prize')">▶ Prize Scam</button>
+          <button class="btn btn-outline btn-sm" onclick="stopSim()">⏹ Stop</button>
+          <button class="btn btn-outline btn-sm" onclick="document.getElementById('call-sim').innerHTML='';speechSynthesis.cancel()">Clear</button>
+        </div>
+      </div>
+      <div class="card">
+        <div class="card-title">🚩 Report a Scam Number</div>
+        <div class="input-wrap">
+          <input class="inp" id="rep-phone" placeholder="+91 XXXXXXXXXX" />
+          <select class="inp" id="rep-phone-type" style="flex:0 0 auto;max-width:140px;">
+            <option value="bank_impersonation">Bank</option>
+            <option value="trai_scam">TRAI</option>
+            <option value="courier_scam">Courier</option>
+            <option value="prize_scam">Prize</option>
+            <option value="other">Other</option>
+          </select>
+        </div>
+        <button class="btn btn-danger btn-full" onclick="reportPhone()">🚩 Report Number</button>
+      </div>
+    </div>
+
+    <!-- Site Audit -->
+    <div class="subpage" id="sub-audit">
+      <div class="sub-top">
+        <button class="back-btn" onclick="closeSub('sub-audit')">‹ Back</button>
+        <h2>🌐 Site Audit</h2>
+      </div>
+      <div class="card">
+        <div class="input-wrap">
+          <input class="inp" id="audit-url" placeholder="example.com" />
+          <button class="btn btn-primary" onclick="runAudit()">Scan</button>
+        </div>
+      </div>
+      <div class="audit-grid" id="audit-grid">
+        <div class="audit-cell"><h4>🔒 SSL</h4><div class="cell-content" id="ac-ssl" style="color:var(--muted);">—</div></div>
+        <div class="audit-cell"><h4>🛡️ Headers</h4><div class="cell-content" id="ac-headers" style="color:var(--muted);">—</div></div>
+        <div class="audit-cell"><h4>⚡ XSS</h4><div class="cell-content" id="ac-xss" style="color:var(--muted);">—</div></div>
+        <div class="audit-cell"><h4>🔌 Ports</h4><div class="cell-content" id="ac-ports" style="color:var(--muted);">—</div></div>
+        <div class="audit-cell"><h4>🔁 CSRF</h4><div class="cell-content" id="ac-csrf" style="color:var(--muted);">—</div></div>
+        <div class="audit-cell"><h4>🔍 Sensitive</h4><div class="cell-content" id="ac-sens" style="color:var(--muted);">—</div></div>
+        <div class="audit-cell"><h4>⏱ Load</h4><div class="cell-content" id="ac-load" style="color:var(--muted);">—</div></div>
+        <div class="audit-cell"><h4>📱 Mobile</h4><div class="cell-content" id="ac-mobile" style="color:var(--muted);">—</div></div>
+      </div>
+      <div class="card" style="margin-top:10px;">
+        <div class="card-title">🤖 AI Summary</div>
+        <div id="audit-ai-txt" style="font-size:13px;line-height:1.6;color:var(--muted);">Run a scan to see results.</div>
+      </div>
+    </div>
+
+    <!-- Scan History -->
+    <div class="subpage" id="sub-history">
+      <div class="sub-top">
+        <button class="back-btn" onclick="closeSub('sub-history')">‹ Back</button>
+        <h2>🕑 Scan History</h2>
+      </div>
+      <div id="history-list"><p style="color:var(--muted);font-size:13px;text-align:center;padding:20px;">Loading history...</p></div>
+    </div>
+
+    <!-- Community Reports -->
+    <div class="subpage" id="sub-reports">
+      <div class="sub-top">
+        <button class="back-btn" onclick="closeSub('sub-reports')">‹ Back</button>
+        <h2>📋 Scam Reports</h2>
+      </div>
+      <div class="card">
+        <div class="card-title">🚩 Submit a Report</div>
+        <label class="form-label">Scam Type</label>
+        <select class="form-select" id="rep-type">
+          <option value="phishing_link">Phishing Link</option>
+          <option value="fake_call">Fake Call</option>
+          <option value="upi_fraud">UPI Fraud</option>
+          <option value="sms_scam">SMS / WhatsApp Scam</option>
+          <option value="bank_impersonation">Bank Impersonation</option>
+          <option value="trai_scam">TRAI Scam</option>
+          <option value="courier_scam">Courier / Parcel Scam</option>
+          <option value="prize_lottery">Prize / Lottery Scam</option>
+        </select>
+        <label class="form-label">Identifier (URL / Number / UPI ID)</label>
+        <input class="inp" id="rep-id" placeholder="e.g. +91 98765 or https://scam.xyz" style="width:100%;margin-bottom:12px;" />
+        <label class="form-label">Description</label>
+        <textarea class="inp" id="rep-desc" rows="3" placeholder="What happened?" style="width:100%;margin-bottom:12px;"></textarea>
+        <button class="btn btn-danger btn-full" onclick="submitReport()">🚩 Submit Report</button>
+      </div>
+      <div class="card">
+        <div class="card-title">🌐 Community Feed</div>
+        <div id="community-feed"><p style="color:var(--muted);font-size:13px;">Loading...</p></div>
+      </div>
+    </div>
+
+    <!-- AI Chat -->
+    <div class="subpage" id="sub-chat">
+      <div class="sub-top">
+        <button class="back-btn" onclick="closeSub('sub-chat')">‹ Back</button>
+        <h2>🤖 ScamShield AI</h2>
+        <select id="chat-lang" class="inp" style="flex:0 0 auto;max-width:105px;font-size:11px;padding:5px 8px;margin:0;" onchange="setAppLanguage(this.value)">
+          <option value="en-IN">🇮🇳 English</option>
+          <option value="hi-IN">🇮🇳 Hindi</option>
+          <option value="kn-IN">🇮🇳 Kannada</option>
+        </select>
+      </div>
+      <div id="chat-msgs" style="display:flex;flex-direction:column;gap:10px;margin-bottom:14px;min-height:200px;">
+        <div id="chat-greeting" style="background:rgba(108,71,255,0.1);border-radius:12px;padding:12px;font-size:13px;line-height:1.5;border:1px solid rgba(108,71,255,0.2);">
+          <strong style="color:#a78bfa;">ScamShield AI:</strong> Hi! I'm your anti-scam assistant. Ask me anything about phishing, UPI fraud, fake calls, or TRAI scams.
+          <button onclick="speakText(document.getElementById('chat-greeting').textContent)" style="background:none;border:none;cursor:pointer;font-size:14px;margin-left:6px;opacity:0.7;" title="Read aloud">🔊</button>
+        </div>
+      </div>
+      <div class="input-wrap" style="position:sticky;bottom:0;background:var(--bg);padding-top:8px;z-index:5;">
+        <input class="inp" id="chat-inp" placeholder="Ask about scams..." />
+        <button class="btn btn-primary" onclick="sendChat()">Send</button>
+      </div>
+    </div>
+
+    <!-- Profile -->
+    <div class="subpage" id="sub-profile">
+      <div class="sub-top">
+        <button class="back-btn" onclick="closeSub('sub-profile')">‹ Back</button>
+        <h2>👤 Profile</h2>
+      </div>
+      <div class="card" style="text-align:center;padding:28px;">
+        <div style="width:72px;height:72px;border-radius:50%;background:linear-gradient(135deg,var(--accent),var(--accent2));display:flex;align-items:center;justify-content:center;font-size:28px;font-weight:800;margin:0 auto 14px;" id="prof-av">U</div>
+        <div style="font-family:var(--font-head);font-size:20px;font-weight:800;margin-bottom:4px;" id="prof-name">—</div>
+        <div style="font-size:13px;color:var(--muted);" id="prof-email">—</div>
+      </div>
+      <div class="card" style="margin-top:8px;">
+        <div class="card-title">📊 Your Stats</div>
+        <div style="display:flex;flex-direction:column;gap:10px;">
+          <div style="display:flex;justify-content:space-between;font-size:14px;"><span style="color:var(--muted);">Scams Blocked</span><span style="font-weight:700;color:var(--danger);" id="prof-scams">0</span></div>
+          <div style="display:flex;justify-content:space-between;font-size:14px;"><span style="color:var(--muted);">Links Scanned</span><span style="font-weight:700;color:var(--warn);" id="prof-urls">0</span></div>
+          <div style="display:flex;justify-content:space-between;font-size:14px;"><span style="color:var(--muted);">Messages Analyzed</span><span style="font-weight:700;color:#a78bfa;" id="prof-msgs">0</span></div>
+        </div>
+      </div>
+      <button class="btn btn-danger btn-full" style="margin-top:14px;" onclick="logout()">🚪 Logout</button>
+    </div>
+
+  </div><!-- /pages -->
+
+  <!-- BOTTOM NAV -->
+  <nav id="nav">
+    <button class="nav-btn active" id="nb-home" onclick="showPage('home','nb-home')">
+      <span class="nav-ico">🏠</span>
+      <span class="nav-lbl">Home</span>
+    </button>
+    <button class="nav-btn" id="nb-scan" onclick="showPage('scan','nb-scan')">
+      <span class="nav-ico">🔗</span>
+      <span class="nav-lbl">Link Scan</span>
+    </button>
+    <div id="qr-nav-btn">
+      <div class="qr-fab" onclick="openQR()">📷</div>
+      <div class="nav-lbl">UPI Scan</div>
+    </div>
+    <button class="nav-btn" id="nb-msg" onclick="showPage('msg','nb-msg')">
+      <span class="nav-ico">💬</span>
+      <span class="nav-lbl">Messages</span>
+    </button>
+    <button class="nav-btn" id="nb-more" onclick="showPage('more','nb-more')">
+      <span class="nav-ico">⋯</span>
+      <span class="nav-lbl">More</span>
+    </button>
+  </nav>
+
+</div><!-- /app -->
+
+<div id="loader"><div class="spin"></div><div id="loader-txt">Analyzing...</div></div>
+<div id="toast"></div>
+
 <script>
-let scanResults={}, perfResults={}, seoResults={};
-let chartInstance, perfChartInstance, seoChartInstance;
+// ═══════════════ STATE ═══════════════
+let statsData = { scams: 0, urls: 0, msgs: 0 };
+let qrStream = null;
+let qrAnimFrame = null;
+let simPlaying = false;
+let ttsLang = 'en-IN';
+let _voices = [];
 
-function showLoader(show=true){document.getElementById("loader").style.display=show?"flex":"none";}
-function renderScore(findings){let sev=(findings?.length||0)*10;let score=Math.max(0,100-sev);let status=score>=80?"<span class='ok'>🟢 Good</span>":score>=50?"<span class='warn'>🟡 Fair</span>":"<span class='bad'>🔴 Poor</span>";return `<div class="score-box">Score: ${score}% | Status: ${status}</div>`;}
+// ═══════════════ INIT ═══════════════
+window.addEventListener('DOMContentLoaded', () => {
+  const name  = localStorage.getItem('username') || 'User';
+  const email = localStorage.getItem('email')    || '';
+  const init  = name.charAt(0).toUpperCase();
 
-// Fetch AI fix from backend
-async function getAIFix(issue){
-  try{
-    const r=await fetch(`/ai-fix?issue=${encodeURIComponent(issue)}`);
-    const d=await r.json();
-    return `<span class="ai-fix">💡 ${d.fix}</span>`;
-  }catch{return "";}
-}
+  document.getElementById('hero-name').textContent    = name;
+  document.getElementById('topbar-name').textContent  = name;
+  document.getElementById('av-initial').textContent   = init;
+  document.getElementById('prof-av').textContent      = init;
+  document.getElementById('prof-name').textContent    = name;
+  document.getElementById('prof-email').textContent   = email;
+  document.getElementById('profile-email-preview').textContent = email || '—';
 
-async function aiExplain(title, issues){
-  if(!issues.length) return `<p>✅ ${title} looks good.</p>`;
-  let html="<ul>";
-  for(const i of issues){
-    const fix=await getAIFix(i);
-    html+=`<li>⚠️ ${i} ${fix}</li>`;
-  }
-  html+="</ul>";
-  return html;
-}
+  const st = JSON.parse(localStorage.getItem('ss_stats') || '{"scams":0,"urls":0,"msgs":0}');
+  statsData = st;
+  updateStats();
 
-// Master Run
-async function runAll(){
-  showLoader(true);
-  await Promise.allSettled([runAllScans(), runPerfScans(), runSEOScans()]);
-  generateFinalAI();
-  await saveHistory();  // Save to backend
-  showLoader(false);
-}
-
-async function saveHistory(){
-  const email = localStorage.getItem("email");
-  if (!email) return;
-
-  const url = document.getElementById("urlInput").value.trim();
-
-  try {
-    await fetch("/save-history", {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({
-        email,
-        url,   // ✅ save url too
-        scanResults,
-        perfResults,
-        seoResults
-      })
-    });
-  } catch (err) {
-    console.error("❌ Failed to save history", err);
-  }
-}
-
-async function saveHistory(){
-  const email = localStorage.getItem("email");
-  if (!email) return;
-
-  const url = document.getElementById("urlInput").value.trim();
-
-  try {
-    await fetch("/save-history", {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({
-        email,
-        url,   // ✅ add this
-        scanResults,
-        perfResults,
-        seoResults
-      })
-    });
-  } catch (err) {
-    console.error("❌ Failed to save history", err);
-  }
-}
-
-/* ========== SECURITY ========== */
-async function runAllScans(){
-  let url=document.getElementById("urlInput").value.trim();if(!url)return alert("Enter a URL");
-  try{
-    const responses=await Promise.all([
-      fetch(`/scan/ssl?url=${encodeURIComponent(url)}`).then(r=>r.json()),
-      fetch(`/scan/headers?url=${encodeURIComponent(url)}`).then(r=>r.json()),
-      fetch(`/scan/libs?url=${encodeURIComponent(url)}`).then(r=>r.json()),
-      fetch(`/scan/xss?url=${encodeURIComponent(url)}`).then(r=>r.json()),
-      fetch(`/scan/ports?url=${encodeURIComponent(url)}`).then(r=>r.json()),
-      fetch(`/scan/csrf?url=${encodeURIComponent(url)}`).then(r=>r.json()),
-      fetch(`/scan/sensitive?url=${encodeURIComponent(url)}`).then(r=>r.json())
-    ]);
-
-    scanResults={
-      ssl: responses[0].endpoints?.map(e=>`Grade: ${e.grade||"N/A"}`) || [],
-      headers: Object.entries(responses[1]).filter(([k,v])=>v.includes("❌")).map(([k,v])=>`${k} missing`),
-      libs: responses[2].filter(lib=>lib.outdated).map(lib=>`${lib.library} ${lib.current} (latest ${lib.latest})`),
-      xss: responses[3].findings || [],
-      ports: [...(responses[4].openPorts||[]).map(p=>`Port ${p} open`),...(responses[4].adminPanels||[]).map(p=>`Admin panel found: ${p}`)],
-      csrf: (responses[5].forms||[]).filter(f=>!f.hasToken).map(f=>`Form ${f.action} missing CSRF token`),
-      sensitive: responses[6].findings || []
-    };
-
-    document.getElementById("sslResults").innerHTML=`<h2>SSL/TLS Scan</h2>${renderScore(scanResults.ssl)}${await aiExplain("SSL/TLS",scanResults.ssl)}`;
-    document.getElementById("headerResults").innerHTML=`<h2>Security Headers</h2>${renderScore(scanResults.headers)}${await aiExplain("Headers",scanResults.headers)}`;
-    document.getElementById("libsResults").innerHTML=`<h2>Outdated JS Libraries</h2>${renderScore(scanResults.libs)}${await aiExplain("Libraries",scanResults.libs)}`;
-    document.getElementById("xssResults").innerHTML=`<h2>XSS</h2>${renderScore(scanResults.xss)}${await aiExplain("XSS",scanResults.xss)}`;
-    document.getElementById("portsResults").innerHTML=`<h2>Open Ports</h2>${renderScore(scanResults.ports)}${await aiExplain("Ports",scanResults.ports)}`;
-    document.getElementById("csrfResults").innerHTML=`<h2>CSRF</h2>${renderScore(scanResults.csrf)}${await aiExplain("CSRF",scanResults.csrf)}`;
-    document.getElementById("sensitiveResults").innerHTML=`<h2>Sensitive Data</h2>${renderScore(scanResults.sensitive)}${await aiExplain("Sensitive",scanResults.sensitive)}`;
-
-    updateChart(); generateAISecurity();
-  }catch(e){console.error(e);}
-}
-function updateChart(){let labels=Object.keys(scanResults);let scores=labels.map(k=>Math.max(0,100-(scanResults[k]?.length||0)*10));let ctx=document.getElementById("scoreChart").getContext("2d");if(chartInstance)chartInstance.destroy();chartInstance=new Chart(ctx,{type:"bar",data:{labels:labels,datasets:[{label:"Security Score",data:scores,backgroundColor:scores.map(s=>s>=80?"limegreen":s>=50?"orange":"red")}]},options:{scales:{y:{beginAtZero:true,max:100}}}});}
-function generateAISecurity(){let total=Object.values(scanResults).reduce((a,b)=>a+b.length,0);let msg=total?`⚠️ ${total} security issues detected.`:"✅ Security looks strong.";document.getElementById("aiSecurity").innerHTML="<h2>🤖 AI Feedback (Security)</h2><p>"+msg+"</p>";}
-
-/* ========== PERFORMANCE ========== */
-async function runPerfScans(){
-  let url=document.getElementById("urlInput").value.trim();if(!url)return alert("Enter a URL");
-  try{
-    const responses=await Promise.all([
-      fetch(`/perf/pageload?url=${encodeURIComponent(url)}`).then(r=>r.json()),
-      fetch(`/perf/server?url=${encodeURIComponent(url)}`).then(r=>r.json()),
-      fetch(`/perf/images?url=${encodeURIComponent(url)}`).then(r=>r.json()),
-      fetch(`/perf/js-css?url=${encodeURIComponent(url)}`).then(r=>r.json()),
-      fetch(`/perf/resources?url=${encodeURIComponent(url)}`).then(r=>r.json())
-    ]);
-    perfResults={
-      pageload:[`Load ${responses[0].loadTimeMs} ms`],
-      server:[`TTFB ${responses[1].ttfbMs} ms`],
-      images:(responses[2].images||[]).map(i=>`Image ${i.src} ${i.size}`),
-      jsCss:[`Blocking ${responses[3].blocking}`],
-      resources:(responses[4].resources||[]).map(r=>`${r.resource} took ${r.loadMs}ms`)
-    };
-    document.getElementById("pageloadResults").innerHTML=`<h2>Page Load</h2>${renderScore(perfResults.pageload)}${await aiExplain("Page Load",perfResults.pageload)}`;
-    document.getElementById("serverTimeResults").innerHTML=`<h2>Server Response</h2>${renderScore(perfResults.server)}${await aiExplain("Server",perfResults.server)}`;
-    document.getElementById("imageResults").innerHTML=`<h2>Images</h2>${renderScore(perfResults.images)}${await aiExplain("Images",perfResults.images)}`;
-    document.getElementById("jsCssResults").innerHTML=`<h2>JS/CSS</h2>${renderScore(perfResults.jsCss)}${await aiExplain("JS/CSS",perfResults.jsCss)}`;
-    document.getElementById("resourceResults").innerHTML=`<h2>Resources</h2>${renderScore(perfResults.resources)}${await aiExplain("Resources",perfResults.resources)}`;
-    updatePerfChart(); generateAIPerf();
-  }catch(e){console.error(e);}
-}
-function updatePerfChart(){let labels=Object.keys(perfResults);let scores=labels.map(k=>Math.max(0,100-(perfResults[k]?.length||0)*10));let ctx=document.getElementById("perfChart").getContext("2d");if(perfChartInstance)perfChartInstance.destroy();perfChartInstance=new Chart(ctx,{type:"bar",data:{labels:labels,datasets:[{label:"Performance Score",data:scores,backgroundColor:scores.map(s=>s>=80?"limegreen":s>=50?"orange":"red")}]},options:{scales:{y:{beginAtZero:true,max:100}}}});}
-function generateAIPerf(){let total=Object.values(perfResults).reduce((a,b)=>a+b.length,0);let msg=total?`⚠️ ${total} performance issues detected.`:"✅ Performance looks strong.";document.getElementById("aiPerf").innerHTML="<h2>🤖 AI Feedback (Performance)</h2><p>"+msg+"</p>";}
-
-/* ========== SEO ========== */
-async function runSEOScans(){
-  let url=document.getElementById("urlInput").value.trim();if(!url)return alert("Enter a URL");
-  try{
-    const responses=await Promise.all([
-      fetch(`/seo/meta?url=${encodeURIComponent(url)}`).then(r=>r.json()),
-      fetch(`/seo/keywords?url=${encodeURIComponent(url)}`).then(r=>r.json()),
-      fetch(`/seo/headings?url=${encodeURIComponent(url)}`).then(r=>r.json()),
-      fetch(`/seo/url?url=${encodeURIComponent(url)}`).then(r=>r.json()),
-      fetch(`/seo/mobile?url=${encodeURIComponent(url)}`).then(r=>r.json()),
-      fetch(`/seo/broken?url=${encodeURIComponent(url)}`).then(r=>r.json()),
-      fetch(`/seo/images?url=${encodeURIComponent(url)}`).then(r=>r.json()),
-      fetch(`/seo/sitemap?url=${encodeURIComponent(url)}`).then(r=>r.json()),
-      fetch(`/seo/backlinks?url=${encodeURIComponent(url)}`).then(r=>r.json()),
-      fetch(`/seo/crawl?url=${encodeURIComponent(url)}`).then(r=>r.json())
-    ]);
-
-    seoResults={
-      meta: responses[0].issues || [],
-      keywords: responses[1].issues || [],
-      headings: responses[2].issues || [],
-      url: responses[3].issues || [],
-      mobile: responses[4].issues || [],
-      broken: responses[5].issues || [],
-      images: responses[6].issues || [],
-      sitemap: responses[7].issues || [],
-      backlinks: responses[8].issues || [],
-      crawl: responses[9].issues || []
-    };
-
-    document.getElementById("metaResults").innerHTML=`<h2>Meta Tags</h2>${renderScore(seoResults.meta)}${await aiExplain("Meta",seoResults.meta)}`;
-    document.getElementById("keywordResults").innerHTML=`<h2>Keywords</h2>${await aiExplain("Keywords",seoResults.keywords)}`;
-    document.getElementById("headingResults").innerHTML=`<h2>Headings</h2>${renderScore(seoResults.headings)}${await aiExplain("Headings",seoResults.headings)}`;
-    document.getElementById("urlResults").innerHTML=`<h2>URL</h2>${renderScore(seoResults.url)}${await aiExplain("URL",seoResults.url)}`;
-    document.getElementById("mobileResults").innerHTML=`<h2>Mobile</h2>${renderScore(seoResults.mobile)}${await aiExplain("Mobile",seoResults.mobile)}`;
-    document.getElementById("brokenResults").innerHTML=`<h2>Broken Links</h2>${renderScore(seoResults.broken)}${await aiExplain("Broken Links",seoResults.broken)}`;
-    document.getElementById("seoImageResults").innerHTML=`<h2>Images</h2>${renderScore(seoResults.images)}${await aiExplain("Images",seoResults.images)}`;
-    document.getElementById("sitemapResults").innerHTML=`<h2>Sitemap/Robots</h2>${renderScore(seoResults.sitemap)}${await aiExplain("Sitemap",seoResults.sitemap)}`;
-    document.getElementById("backlinkResults").innerHTML=`<h2>Backlinks</h2>${await aiExplain("Backlinks",seoResults.backlinks)}`;
-    document.getElementById("crawlResults").innerHTML=`<h2>Crawl</h2>${renderScore(seoResults.crawl)}${await aiExplain("Crawl",seoResults.crawl)}`;
-
-    updateSEOChart(); generateAISEO();
-  }catch(e){console.error(e);}
-}
-function updateSEOChart(){let labels=Object.keys(seoResults);let scores=labels.map(k=>Math.max(0,100-(seoResults[k]?.length||0)*10));let ctx=document.getElementById("seoChart").getContext("2d");if(seoChartInstance)seoChartInstance.destroy();seoChartInstance=new Chart(ctx,{type:"bar",data:{labels:labels,datasets:[{label:"SEO Score",data:scores,backgroundColor:scores.map(s=>s>=80?"limegreen":s>=50?"orange":"red")}]},options:{scales:{y:{beginAtZero:true,max:100}}}});}
-function generateAISEO(){let total=Object.values(seoResults).reduce((a,b)=>a+b.length,0);let msg=total?`⚠️ ${total} SEO issues detected.`:"✅ SEO looks strong.";document.getElementById("aiSEO").innerHTML="<h2>🤖 AI Feedback (SEO)</h2><p>"+msg+"</p>";}
-
-/* Final AI Summary */
-function generateFinalAI(){
-  let s=Object.values(scanResults).reduce((a,b)=>a+b.length,0),
-      p=Object.values(perfResults).reduce((a,b)=>a+b.length,0),
-      seo=Object.values(seoResults).reduce((a,b)=>a+b.length,0);
-  let msg=`Security: ${s} issues. Performance: ${p} issues. SEO: ${seo} issues.`;
-  if(s+p+seo===0)msg+=" ✅ Everything looks great!";
-  document.getElementById("aiFinal").innerHTML="<h2>🤖 Overall AI Feedback</h2><p>"+msg+"</p>";
-}
-
-// ---------- PDF REPORTS ----------
-async function generateReport(){
-  if(!Object.keys(scanResults).length) return alert("Run security scans first!");
-  const res = await fetch("/generate-report", {
-    method: "POST",
-    headers: {"Content-Type":"application/json"},
-    body: JSON.stringify({ scanResults })
+  const savedLang = localStorage.getItem('ss_lang') || 'en-IN';
+  ttsLang = savedLang;
+  ['global-lang','sim-lang','chat-lang','upi-lang'].forEach(id => {
+    const el = document.getElementById(id);
+    if (el) el.value = savedLang;
   });
-  if(res.ok){
-    const blob = await res.blob();
-    const url = URL.createObjectURL(blob);
-    const a = document.createElement("a");
-    a.href = url;
-    a.download = "SecurityReport.pdf";
-    a.click();
-    URL.revokeObjectURL(url);
+
+  initHomeChart();
+  loadCommunityFeed();
+
+  // Apply saved language translations on load
+  if (savedLang !== 'en-IN') applyTranslations(savedLang);
+
+  // Register SW
+  if ('serviceWorker' in navigator) {
+    navigator.serviceWorker.register('/sw.js').catch(() => {});
   }
+
+  // PWA install prompt
+  initPWAInstall();
+});
+
+function saveStats() { localStorage.setItem('ss_stats', JSON.stringify(statsData)); }
+function updateStats() {
+  document.getElementById('s-scams').textContent = statsData.scams;
+  document.getElementById('s-urls').textContent  = statsData.urls;
+  document.getElementById('s-msgs').textContent  = statsData.msgs;
+  document.getElementById('prof-scams').textContent = statsData.scams;
+  document.getElementById('prof-urls').textContent  = statsData.urls;
+  document.getElementById('prof-msgs').textContent  = statsData.msgs;
 }
 
-async function generatePerformanceReport(){
-  if(!Object.keys(perfResults).length) return alert("Run performance scans first!");
-  const res = await fetch("/generate-report", {
-    method: "POST",
-    headers: {"Content-Type":"application/json"},
-    body: JSON.stringify({ scanResults: perfResults })
-  });
-  if(res.ok){
-    const blob = await res.blob();
-    const url = URL.createObjectURL(blob);
-    const a = document.createElement("a");
-    a.href = url;
-    a.download = "PerformanceReport.pdf";
-    a.click();
-    URL.revokeObjectURL(url);
-  }
+// ═══════════════ NAV ═══════════════
+function showPage(id, btnId) {
+  document.querySelectorAll('.page').forEach(p => p.classList.remove('active'));
+  document.querySelectorAll('.nav-btn').forEach(b => b.classList.remove('active'));
+  document.getElementById('page-' + id).classList.add('active');
+  if (btnId) document.getElementById(btnId).classList.add('active');
+  if (id !== 'qr') stopQR();
 }
 
-async function generateSEOReport(){
-  if(!Object.keys(seoResults).length) return alert("Run SEO scans first!");
-  const res = await fetch("/generate-report", {
-    method: "POST",
-    headers: {"Content-Type":"application/json"},
-    body: JSON.stringify({ scanResults: seoResults })
-  });
-  if(res.ok){
-    const blob = await res.blob();
-    const url = URL.createObjectURL(blob);
-    const a = document.createElement("a");
-    a.href = url;
-    a.download = "SEOReport.pdf";
-    a.click();
-    URL.revokeObjectURL(url);
-  }
+function openSub(id) {
+  document.getElementById(id).classList.add('open');
+  if (id === 'sub-reports') loadCommunityFeed();
+  if (id === 'sub-history') loadHistory();
 }
-function toggleSidebar() {
-  const sidebar = document.getElementById("sidebar");
-  const main = document.getElementById("mainContent");
+function closeSub(id) { document.getElementById(id).classList.remove('open'); }
 
-  if (sidebar.classList.contains("-translate-x-full")) {
-    sidebar.classList.remove("-translate-x-full");
-    main.classList.add("ml-64");  // shrink when sidebar open
+function logout() {
+  localStorage.clear();
+  window.location.href = '/';
+}
+
+// ═══════════════ LOADER / TOAST ═══════════════
+function showLoader(t) {
+  document.getElementById('loader-txt').textContent = t || 'Analyzing...';
+  document.getElementById('loader').style.display = 'flex';
+}
+function hideLoader() { document.getElementById('loader').style.display = 'none'; }
+function toast(msg, col) {
+  const t = document.getElementById('toast');
+  t.textContent = msg;
+  t.style.borderColor = col || 'var(--border)';
+  t.classList.add('show');
+  setTimeout(() => t.classList.remove('show'), 3000);
+}
+
+// ═══════════════ VERDICT BUILDER ═══════════════
+function buildVerdictWithTTS(verdict, score, flags, summary) {
+  const cls = verdict.includes('DANGEROUS') || verdict.includes('SCAM') || verdict.includes('HIGH RISK')
+    ? 'danger' : verdict.includes('SUSPICIOUS') ? 'warn' : verdict.includes('SAFE') ? 'safe' : 'unknown';
+  const barCol = score >= 60 ? '#ff3d3d' : score >= 30 ? '#ffb300' : '#00e5b0';
+  const safeVerdict = verdict.replace(/'/g, "\\'");
+  const safeSummary = summary.replace(/'/g, "\\'");
+  return `<div class="verdict-box ${cls}">
+    <div style="display:flex;align-items:center;justify-content:space-between;">
+      <div class="verdict-label">${verdict}</div>
+      <button onclick="speakText('${safeVerdict}. ${safeSummary}')" style="background:rgba(255,255,255,0.1);border:1px solid rgba(255,255,255,0.15);border-radius:8px;padding:5px 10px;cursor:pointer;color:#fff;font-size:13px;">🔊</button>
+    </div>
+    <div style="font-size:11px;color:var(--muted);margin-bottom:2px;">Risk Score: ${score}/100</div>
+    <div class="risk-bar"><div class="risk-fill" style="width:${score}%;background:${barCol};"></div></div>
+    <div class="verdict-summary">${summary}</div>
+    <ul class="flag-list">${(flags||[]).map(f=>`<li class="${f.type}">${f.text}</li>`).join('')}</ul>
+  </div>`;
+}
+
+// ═══════════════ QUICK CHECK ═══════════════
+async function quickCheck() {
+  const v = document.getElementById('quick-inp').value.trim();
+  if (!v) return;
+  const box = document.getElementById('quick-res');
+  box.innerHTML = '<p style="color:var(--muted);font-size:12px;margin-top:8px;">⏳ Checking...</p>';
+  let r;
+  if (v.startsWith('http') || (v.includes('.') && !v.includes('@') && !v.startsWith('+'))) {
+    r = await phishingAnalysis(v); statsData.urls++;
+  } else if (v.includes('@') && !v.includes(' ')) {
+    r = upiAnalysis(v);
+  } else if (v.startsWith('+') || /^\d{10,12}$/.test(v)) {
+    r = numberAnalysis(v);
   } else {
-    sidebar.classList.add("-translate-x-full");
-    main.classList.remove("ml-64"); // expand back
+    r = localMsgAnalysis(v); statsData.msgs++;
+  }
+  box.innerHTML = buildVerdictWithTTS(r.verdict, r.score, r.flags, r.summary);
+  speakText(r.verdict + '. ' + r.summary);
+  if (r.verdict.includes('SCAM') || r.verdict === 'DANGEROUS' || r.verdict === 'HIGH RISK') statsData.scams++;
+  saveStats(); updateStats();
+  saveHistoryEntry(v, r.verdict, r.score, 'quick_check');
+}
+
+// ═══════════════ PHISHING SCANNER ═══════════════
+async function scanPhishing() {
+  const url = document.getElementById('phish-url').value.trim();
+  if (!url) return toast('⚠️ Please enter a URL', '#ffb300');
+  showLoader('Scanning link...');
+  const r = await phishingAnalysis(url);
+  document.getElementById('phish-res').innerHTML = buildVerdictWithTTS(r.verdict, r.score, r.flags, r.summary);
+  speakText(r.verdict + '. ' + r.summary);
+  if (r.verdict === 'DANGEROUS') statsData.scams++;
+  statsData.urls++;
+  saveStats(); updateStats();
+  hideLoader();
+  saveHistoryEntry(url, r.verdict, r.score, 'phishing_scan');
+}
+
+async function phishingAnalysis(url) {
+  const flags = []; let score = 0;
+  const raw    = url.toLowerCase();
+  const domain = raw.replace(/^https?:\/\//, '').split('/')[0];
+  const badTLDs  = ['.xyz','.link','.online','.site','.click','.loan','.gq','.cf','.tk','.ml'];
+  const scamKW   = ['kyc','update','verify','secure','login','account','blocked','urgent','reward','prize','refund','otp','suspended','confirm','alert'];
+  const brands   = ['sbi','hdfc','icici','paytm','phonepe','gpay','airtel','jio','trai','amazon','flipkart','fedex','dhl','uidai','incometax','npci'];
+
+  if (badTLDs.some(t => domain.endsWith(t))) { flags.push({type:'bad',text:'🔴 Suspicious TLD: .'+domain.split('.').pop()}); score+=30; }
+  if (/^\d+\.\d+\.\d+\.\d+/.test(domain))   { flags.push({type:'bad',text:'🔴 IP address used as domain — phishing technique'}); score+=40; }
+  const fb = brands.filter(b => domain.includes(b));
+  if (fb.length) { flags.push({type:'bad',text:`🔴 Brand spoofing detected: "${fb.join(', ')}"`}); score+=35; }
+  const fk = scamKW.filter(k => raw.includes(k));
+  if (fk.length > 1) { flags.push({type:'warn',text:`⚠️ Scam keywords in URL: ${fk.slice(0,3).join(', ')}`}); score+=20; }
+  if (domain.split('.').length > 4) { flags.push({type:'warn',text:'⚠️ Excessive subdomains'}); score+=15; }
+  if (raw.includes('@'))             { flags.push({type:'bad',text:'🔴 @ in URL — hides true destination'}); score+=40; }
+  if (domain.length > 30)            { flags.push({type:'warn',text:'⚠️ Unusually long domain'}); score+=10; }
+
+  // Try to check headers from server for extra signals
+  try {
+    const target = url.startsWith('http') ? url : 'https://' + url;
+    const hr = await fetch(`/scan/headers?url=${encodeURIComponent(target)}`);
+    if (hr.ok) {
+      const h = await hr.json();
+      const hdrs = h.headers || h;
+      const missing = Object.values(hdrs).filter(v => typeof v === 'string' && v.includes('❌')).length;
+      if (missing >= 4) { flags.push({type:'warn',text:`⚠️ ${missing} security headers missing`}); score+=15; }
+      if (typeof hdrs['strict-transport-security'] === 'string' && hdrs['strict-transport-security'].includes('❌')) {
+        flags.push({type:'bad',text:'🔴 No HSTS — no HTTPS enforcement'}); score+=20;
+      } else if (typeof hdrs['strict-transport-security'] === 'string') {
+        flags.push({type:'good',text:'✅ HTTPS/HSTS enforced'});
+      }
+    }
+  } catch {}
+
+  if (!flags.find(f => f.type === 'bad')) {
+    flags.push({type:'good',text:'✅ No major red flags in URL structure'});
+    flags.push({type:'info',text:'ℹ️ Always verify via official app'});
+  }
+  score = Math.min(score, 100);
+  const verdict = score >= 60 ? 'DANGEROUS' : score >= 30 ? 'SUSPICIOUS' : 'LIKELY SAFE';
+  const summary = score >= 60
+    ? '🚨 Strong phishing indicators. Do NOT click or share this link.'
+    : score >= 30 ? '⚠️ Some suspicious patterns. Verify before clicking.'
+    : '✅ No strong phishing signals. Stay cautious with unfamiliar links.';
+  return {verdict, score, flags, summary};
+}
+
+// ═══════════════ MESSAGE ANALYZER ═══════════════
+async function analyzeMsg() {
+  const text = document.getElementById('msg-inp').value.trim();
+  if (!text) return toast('⚠️ Paste a message first', '#ffb300');
+  showLoader('AI analyzing message...');
+  let result;
+  try {
+    // Try OpenRouter AI first
+    const aiResult = await analyzeWithAI(text);
+    if (aiResult && aiResult.verdict) {
+      result = aiResult;
+    } else {
+      // Fall back to server
+      const res = await fetch('/analyze/message', {
+        method: 'POST', headers: {'Content-Type':'application/json'},
+        body: JSON.stringify({message: text})
+      });
+      if (res.ok) {
+        const d = await res.json();
+        result = (d.verdict && d.score !== undefined) ? d : localMsgAnalysis(text);
+      } else { result = localMsgAnalysis(text); }
+    }
+  } catch {
+    result = localMsgAnalysis(text);
+  }
+  document.getElementById('msg-res').innerHTML = buildVerdictWithTTS(result.verdict, result.score, result.flags, result.summary);
+  speakText(result.verdict + '. ' + result.summary);
+  statsData.msgs++;
+  if (result.verdict === 'SCAM DETECTED') statsData.scams++;
+  saveStats(); updateStats();
+  hideLoader();
+  saveHistoryEntry(text.substring(0,60)+'...', result.verdict, result.score, 'message_analysis');
+}
+
+function localMsgAnalysis(text) {
+  const lower = text.toLowerCase(); const flags = []; let score = 0;
+  const otp  = ['otp','one time password','pin','cvv','password'];
+  const urg  = ['immediately','urgent','within','minutes','hours','today','expire','block','suspend','arrest','legal action','police'];
+  const mon  = ['refund','prize','lottery','won','winner','reward','send money','pay first'];
+  const imp  = ['sbi','hdfc','icici','airtel','jio','trai','income tax','customs','cbi','uidai','amazon','flipkart','fedex'];
+  const links = text.match(/https?:\/\/\S+/g) || [];
+
+  if (otp.some(w => lower.includes(w))) { flags.push({type:'bad',text:'🔴 Asks for OTP/PIN — banks NEVER do this'}); score+=45; }
+  const uf = urg.filter(w => lower.includes(w));
+  if (uf.length >= 2) { flags.push({type:'bad',text:`🔴 High-pressure urgency: "${uf.slice(0,2).join('", "')}"`}); score+=25; }
+  else if (uf.length === 1) { flags.push({type:'warn',text:`⚠️ Urgency language: "${uf[0]}"`}); score+=10; }
+  if (mon.some(w => lower.includes(w))) { flags.push({type:'warn',text:'⚠️ Money/reward language — classic scam hook'}); score+=20; }
+  const im = imp.filter(i => lower.includes(i));
+  if (im.length) { flags.push({type:'bad',text:`🔴 Possible impersonation: ${im[0]} — verify via official channels`}); score+=30; }
+  if (links.length) { flags.push({type:'warn',text:`⚠️ Contains ${links.length} link(s): ${links[0].substring(0,35)}...`}); score+=15; }
+  if (text.length < 60 && links.length) { flags.push({type:'bad',text:'🔴 Short message with link — classic SMS phishing'}); score+=15; }
+  if (!flags.find(f => f.type === 'bad')) {
+    flags.push({type:'good',text:'✅ No obvious scam indicators'});
+    flags.push({type:'info',text:'ℹ️ Still exercise caution'});
+  }
+  score = Math.min(score, 100);
+  const verdict = score >= 55 ? 'SCAM DETECTED' : score >= 25 ? 'SUSPICIOUS' : 'LIKELY SAFE';
+  const summary = score >= 55
+    ? '🚨 Strong scam characteristics. Do NOT share OTP or click links.'
+    : score >= 25 ? '⚠️ Some red flags. Verify via official channels.'
+    : '✅ No major scam patterns. Verify sender independently.';
+  return {verdict, score, flags, summary};
+}
+
+function loadSample(t) {
+  const s = {
+    bank: 'Dear Customer, your SBI account will be BLOCKED in 24 hours due to incomplete KYC. Click here: http://sbi-kyc-verify.online/update?id=384. Act NOW.',
+    trai: 'TRAI NOTICE: Your mobile number will be DISCONNECTED within 2 hours for suspicious activity. Press 1 or visit https://trai-complaint.xyz to avoid disconnection.',
+    prize: 'CONGRATULATIONS! You WON Rs.50,00,000 in Amazon Lucky Draw! Pay processing fee Rs.5000 via UPI: prize@ybl and share Aadhaar to claim.'
+  };
+  document.getElementById('msg-inp').value = s[t];
+}
+
+// ═══════════════ UPI CHECKER ═══════════════
+function checkUPI() {
+  const upi = document.getElementById('upi-inp').value.trim().toLowerCase();
+  if (!upi) return toast('⚠️ Enter a UPI ID', '#ffb300');
+  const r = upiAnalysis(upi);
+  document.getElementById('upi-res').innerHTML = buildVerdictWithTTS(r.verdict, r.score, r.flags, r.summary);
+  if (r.verdict === 'HIGH RISK') statsData.scams++;
+  statsData.urls++;
+  saveStats(); updateStats();
+  speakText(r.verdict + '. ' + r.summary);
+  saveHistoryEntry(upi, r.verdict, r.score, 'upi_check');
+}
+
+function upiAnalysis(upi) {
+  const flags = []; let score = 0;
+  const [handle, bank] = upi.split('@');
+  const fraudH = ['support','helpdesk','refund','prize','lottery','customer','care','service','complaint','claim','award','winner','agent'];
+  const realB  = ['okicici','oksbi','okhdfcbank','okaxis','paytm','ybl','axl','upi','apl','ibl','pnb','boi','upiaxis','upiicici'];
+  const fakeKW = ['hdfc','sbi','icici','paytm','phonepe','amazon','flipkart','google','jio','airtel'];
+
+  if (!upi.includes('@')) { flags.push({type:'bad',text:'🔴 Invalid UPI format — must contain @'}); score=80; }
+  else {
+    if (fraudH.some(f => handle.includes(f))) { flags.push({type:'bad',text:`🔴 High-risk keyword in handle: "${handle}"`}); score+=50; }
+    if (!bank || bank.length < 2) { flags.push({type:'bad',text:'🔴 Missing/invalid bank handle'}); score+=30; }
+    else if (fakeKW.some(k => bank.includes(k)) && !realB.includes(bank)) { flags.push({type:'bad',text:`🔴 Bank handle "@${bank}" is not official`}); score+=40; }
+    else if (realB.includes(bank)) { flags.push({type:'good',text:`✅ "@${bank}" is a recognised UPI bank handle`}); }
+    if (/\d{6,}/.test(handle)) { flags.push({type:'warn',text:'⚠️ Random number string in handle'}); score+=15; }
+  }
+  if (!flags.find(f => f.type === 'bad')) flags.push({type:'info',text:'ℹ️ Always confirm payee name in your UPI app before paying'});
+  score = Math.min(score, 100);
+  const verdict = score >= 50 ? 'HIGH RISK' : score >= 25 ? 'SUSPICIOUS' : 'LIKELY SAFE';
+  const summary = score >= 50
+    ? '🚨 Strong fraud indicators. DO NOT send money. Report immediately.'
+    : score >= 25 ? '⚠️ Suspicious characteristics. Verify before transacting.'
+    : '✅ No major fraud signals. Confirm payee name in your UPI app.';
+  return {verdict, score, flags, summary};
+}
+
+// ═══════════════ PHONE CHECKER ═══════════════
+function checkPhone() {
+  const num = document.getElementById('phone-inp').value.trim();
+  if (!num) return toast('⚠️ Enter a phone number', '#ffb300');
+  const r = numberAnalysis(num);
+  document.getElementById('phone-res').innerHTML = buildVerdictWithTTS(r.verdict, r.score, r.flags, r.summary);
+  speakText(r.verdict + '. ' + r.summary);
+}
+
+function numberAnalysis(num) {
+  const flags = []; let score = 0;
+  const clean = num.replace(/\s+/g,'');
+  const badPre = ['+91140','+91160','+91180','+91184'];
+  if (!clean.startsWith('+91') && !clean.startsWith('0') && clean.length !== 10) { flags.push({type:'warn',text:'⚠️ Unusual format for Indian mobile'}); score+=15; }
+  if (badPre.some(p => clean.startsWith(p))) { flags.push({type:'bad',text:'🔴 Prefix linked to automated scam calls'}); score+=40; }
+  if (/(\d)\1{4,}/.test(clean)) { flags.push({type:'warn',text:'⚠️ Repeated digits — often spoofed numbers'}); score+=20; }
+  flags.push({type:'info',text:'ℹ️ Not in known blacklist (no community matches)'});
+  score = Math.min(score, 100);
+  const verdict = score >= 40 ? 'HIGH RISK' : score >= 20 ? 'SUSPICIOUS' : 'UNKNOWN';
+  const summary = score >= 40
+    ? '🚨 Number pattern matches known scammer profiles.'
+    : '⚠️ Not found in scam databases. Stay alert if receiving calls.';
+  return {verdict, score, flags, summary};
+}
+
+// ═══════════════ SITE AUDIT (FIXED - uses actual server routes) ═══════════════
+async function runAudit() {
+  const raw = document.getElementById('audit-url').value.trim();
+  if (!raw) return toast('⚠️ Enter a URL', '#ffb300');
+  const url = raw.startsWith('http') ? raw : 'https://' + raw;
+  showLoader('Running security audit...');
+
+  const set = (id, txt, col) => {
+    const el = document.getElementById(id);
+    if (el) { el.textContent = txt; el.style.color = col || 'var(--text)'; }
+  };
+
+  // Reset all cells
+  ['ac-ssl','ac-headers','ac-xss','ac-ports','ac-csrf','ac-sens','ac-load','ac-mobile'].forEach(id => set(id, 'Scanning...', 'var(--muted)'));
+
+  try {
+    // Run scans in parallel (SSL can be slow, so give it its own timeout)
+    const [headersRes, xssRes, portsRes, csrfRes] = await Promise.all([
+      fetch(`/scan/headers?url=${encodeURIComponent(url)}`).then(r=>r.ok?r.json():null).catch(()=>null),
+      fetch(`/scan/xss?url=${encodeURIComponent(url)}`).then(r=>r.ok?r.json():null).catch(()=>null),
+      fetch(`/scan/ports?url=${encodeURIComponent(url)}`).then(r=>r.ok?r.json():null).catch(()=>null),
+      fetch(`/scan/csrf?url=${encodeURIComponent(url)}`).then(r=>r.ok?r.json():null).catch(()=>null),
+    ]);
+
+    // Also try performance and sensitive
+    const [perfRes, sensRes] = await Promise.all([
+      fetch(`/perf/check?url=${encodeURIComponent(url)}`).then(r=>r.ok?r.json():null).catch(()=>null),
+      fetch(`/scan/sensitive?url=${encodeURIComponent(url)}`).then(r=>r.ok?r.json():null).catch(()=>null),
+    ]);
+
+    // SSL (try but don't block — it can take minutes)
+    set('ac-ssl', 'Checking...', 'var(--muted)');
+    fetch(`/scan/ssl?url=${encodeURIComponent(url)}`)
+      .then(r => r.ok ? r.json() : null)
+      .then(ssl => {
+        if (!ssl) { set('ac-ssl', '⚠️ Timeout', 'var(--warn)'); return; }
+        const grade = ssl.endpoints?.[0]?.grade || '?';
+        set('ac-ssl', `Grade: ${grade}`, (grade==='A+'||grade==='A') ? 'var(--ok)' : 'var(--warn)');
+      })
+      .catch(() => set('ac-ssl', '⚠️ N/A', 'var(--muted)'));
+
+    // Headers
+    if (headersRes) {
+      const hdrs = headersRes.headers || headersRes;
+      const missing = Object.values(hdrs).filter(v => typeof v === 'string' && v.includes('❌')).length;
+      set('ac-headers', missing===0?'✅ All present':`${missing} missing`, missing===0?'var(--ok)':'var(--danger)');
+    } else { set('ac-headers', '⚠️ Error', 'var(--warn)'); }
+
+    // XSS
+    if (xssRes) {
+      const xi = xssRes.findings?.length || 0;
+      set('ac-xss', xi===0?'✅ Clear':`${xi} issue(s)`, xi===0?'var(--ok)':'var(--danger)');
+    } else { set('ac-xss', '⚠️ N/A', 'var(--muted)'); }
+
+    // Ports
+    if (portsRes) {
+      const op = portsRes.openPorts?.length || 0;
+      set('ac-ports', op===0?'✅ Minimal':`${op} open`, op<=1?'var(--ok)':'var(--warn)');
+    } else { set('ac-ports', '⚠️ N/A', 'var(--muted)'); }
+
+    // CSRF
+    if (csrfRes) {
+      const ci = (csrfRes.forms||[]).filter(f=>!f.hasToken).length;
+      set('ac-csrf', ci===0?'✅ Protected':`${ci} unprotected`, ci===0?'var(--ok)':'var(--danger)');
+    } else { set('ac-csrf', '⚠️ N/A', 'var(--muted)'); }
+
+    // Sensitive
+    if (sensRes) {
+      const si = sensRes.findings?.length || 0;
+      set('ac-sens', si===0?'✅ Clean':`${si} finding(s)`, si===0?'var(--ok)':'var(--danger)');
+    } else { set('ac-sens', '⚠️ N/A', 'var(--muted)'); }
+
+    // Performance (map from /perf/check response)
+    if (perfRes) {
+      const scripts = perfRes.scripts || 0;
+      const imgs = perfRes.images || 0;
+      const size = perfRes.htmlSize || 0;
+      const loadOk = scripts < 15 && size < 300000;
+      set('ac-load', `${scripts} scripts, ${imgs} imgs`, loadOk?'var(--ok)':'var(--warn)');
+    } else { set('ac-load', '⚠️ N/A', 'var(--muted)'); }
+
+    // Mobile (check meta viewport from seo/metadata)
+    try {
+      const metaRes = await fetch(`/seo/metadata?url=${encodeURIComponent(url)}`);
+      if (metaRes.ok) {
+        const meta = await metaRes.json();
+        const hasMeta = !!(meta.title);
+        set('ac-mobile', hasMeta?'✅ Meta OK':'⚠️ No meta', hasMeta?'var(--ok)':'var(--warn)');
+      } else { set('ac-mobile', '⚠️ N/A', 'var(--muted)'); }
+    } catch { set('ac-mobile', '⚠️ N/A', 'var(--muted)'); }
+
+    // AI Summary
+    const issueCount = [xssRes, csrfRes, sensRes].reduce((acc, r) => {
+      if (!r) return acc;
+      return acc + (r.findings?.length || 0) + ((r.forms||[]).filter(f=>!f.hasToken).length || 0);
+    }, 0);
+    const headMissing = headersRes ? Object.values(headersRes.headers||headersRes).filter(v=>typeof v==='string'&&v.includes('❌')).length : 0;
+    const total = issueCount + headMissing;
+
+    const aiTxt = document.getElementById('audit-ai-txt');
+    const summary = total === 0
+      ? '✅ Website appears well-secured. No critical vulnerabilities found.'
+      : total < 4 ? `⚠️ ${total} issue(s) found. Review security headers and configuration.`
+      : `🚨 ${total} issues detected. Immediate attention needed for headers, CSRF, and exposure.`;
+    aiTxt.textContent = summary;
+    aiTxt.style.color = total===0?'var(--ok)':total<4?'var(--warn)':'var(--danger)';
+    speakText(summary);
+
+  } catch(e) {
+    toast('Audit error: ' + e.message, '#ff3d3d');
+  }
+  hideLoader();
+}
+
+// ═══════════════ AI CHAT — Direct OpenRouter (works without server) ═══════════════
+const OR_KEY = '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';
+const CHAT_HISTORY = [];
+
+async function callAI(systemPrompt, userMsg, maxTokens = 400) {
+  const messages = [
+    { role: 'system', content: systemPrompt },
+    ...CHAT_HISTORY.slice(-8), // keep last 4 turns for context
+    { role: 'user', content: userMsg }
+  ];
+  try {
+    const res = await fetch('https://openrouter.ai/api/v1/chat/completions', {
+      method: 'POST',
+      headers: {
+        'Authorization': `Bearer ${OR_KEY}`,
+        'Content-Type': 'application/json',
+        'HTTP-Referer': 'https://scamshield.app',
+        'X-Title': 'ScamShield'
+      },
+      body: JSON.stringify({
+        model: 'openai/gpt-4o-mini',
+        messages,
+        max_tokens: maxTokens
+      })
+    });
+    if (!res.ok) throw new Error(`HTTP ${res.status}`);
+    const data = await res.json();
+    return data.choices?.[0]?.message?.content || null;
+  } catch(e) {
+    console.error('OpenRouter error:', e);
+    return null;
   }
 }
 
-// Load history from backend
-async function loadHistory() {
-  const email = localStorage.getItem("email");
-  if (!email) return;
+async function sendChat() {
+  const inp = document.getElementById('chat-inp');
+  const text = inp.value.trim();
+  if (!text) return;
+  addMsg('You', text, false);
+  CHAT_HISTORY.push({ role: 'user', content: text });
+  inp.value = '';
 
+  const typingId = 'typing-' + Date.now();
+  const msgs = document.getElementById('chat-msgs');
+  const typing = document.createElement('div');
+  typing.id = typingId;
+  typing.style.cssText = 'background:rgba(108,71,255,0.07);border-radius:12px;padding:10px 14px;font-size:13px;color:var(--muted);border:1px solid rgba(108,71,255,0.1);animation:pulse 1.2s ease infinite;';
+  typing.textContent = '⏳ ScamShield AI is thinking...';
+  msgs.appendChild(typing);
+  msgs.scrollTop = msgs.scrollHeight;
+
+  const langHint = ttsLang === 'hi-IN' ? 'Reply in Hindi.' : ttsLang === 'kn-IN' ? 'Reply in Kannada.' : 'Reply in English.';
+  const sysPrompt = `You are ScamShield AI, an expert anti-scam assistant specializing in Indian cyber fraud: phishing, UPI fraud, fake calls, WhatsApp scams, TRAI impersonation, bank impersonation. Be concise, practical, and warn clearly. User name: ${localStorage.getItem('username')||'User'}. ${langHint}`;
+
+  // Try OpenRouter first, fall back to server
+  let reply = await callAI(sysPrompt, text, 350);
+  if (!reply) {
+    try {
+      const sr = await fetch('/ai-chat', {
+        method: 'POST', headers: {'Content-Type':'application/json'},
+        body: JSON.stringify({ prompt: text, username: localStorage.getItem('username')||'User' })
+      });
+      if (sr.ok) { const d = await sr.json(); reply = d.reply; }
+    } catch {}
+  }
+
+  const el = document.getElementById(typingId);
+  if (el) el.remove();
+
+  const finalReply = reply || (ttsLang === 'hi-IN' ? 'AI सेवा अनुपलब्ध है। कृपया पुनः प्रयास करें।' : ttsLang === 'kn-IN' ? 'AI ಸೇವೆ ಲಭ್ಯವಿಲ್ಲ. ದಯವಿಟ್ಟು ಮತ್ತೊಮ್ಮೆ ಪ್ರಯತ್ನಿಸಿ.' : '⚠️ AI service unavailable. Please try again in a moment.');
+  CHAT_HISTORY.push({ role: 'assistant', content: finalReply });
+  addMsg('ScamShield AI', finalReply, true);
+}
+
+// Also wire up message analysis to use OpenRouter directly
+async function analyzeWithAI(message) {
+  const sysPrompt = `You are an expert scam detection AI trained on Indian cyber fraud. Analyze the message and respond ONLY with valid JSON (no markdown, no backticks):
+{"verdict":"SCAM DETECTED"|"SUSPICIOUS"|"LIKELY SAFE","score":<0-100>,"summary":"<1-2 sentences>","flags":[{"type":"bad"|"warn"|"good"|"info","text":"<finding>"}]}
+Focus on: OTP requests, fake bank calls, TRAI threats, urgency, prize fraud, advance fees, UPI phishing.`;
+  try {
+    const raw = await callAI(sysPrompt, `Analyze:\n"${message}"`, 500);
+    if (!raw) return null;
+    const clean = raw.replace(/```json|```/gi, '').trim();
+    return JSON.parse(clean);
+  } catch { return null; }
+}
+
+function addMsg(who, text, isAI) {
+  const msgs = document.getElementById('chat-msgs');
+  const d = document.createElement('div');
+  d.style.cssText = `background:${isAI?'rgba(108,71,255,0.1)':'rgba(255,255,255,0.06)'};border-radius:12px;padding:12px;font-size:13px;line-height:1.5;border:1px solid ${isAI?'rgba(108,71,255,0.2)':'rgba(255,255,255,0.07)'};`;
+  const safeText = text.replace(/'/g, "\\'");
+  const speakBtn = isAI ? `<button onclick="speakText('${safeText}')" style="background:none;border:none;cursor:pointer;font-size:14px;margin-left:6px;opacity:0.7;vertical-align:middle;" title="Read aloud">🔊</button>` : '';
+  d.innerHTML = `<strong style="color:${isAI?'#a78bfa':'#ec4899'};">${who}:</strong> ${text}${speakBtn}`;
+  msgs.appendChild(d);
+  msgs.scrollTop = msgs.scrollHeight;
+  if (isAI) speakText(text);
+}
+
+document.addEventListener('keydown', e => {
+  if (e.key === 'Enter' && document.getElementById('chat-inp') === document.activeElement) sendChat();
+});
+
+// ═══════════════ REPORT ═══════════════
+async function submitReport() {
+  const type = document.getElementById('rep-type').value;
+  const id   = document.getElementById('rep-id').value.trim();
+  const desc = document.getElementById('rep-desc').value.trim();
+  if (!id) return toast('⚠️ Enter an identifier', '#ffb300');
+  showLoader('Submitting...');
+  try {
+    const res = await fetch('/report/scam', {
+      method: 'POST',
+      headers: {'Content-Type':'application/json'},
+      body: JSON.stringify({type, identifier: id, desc, email: localStorage.getItem('email')})
+    });
+    if (res.ok) {
+      toast('✅ Report submitted! Thank you.', '#00e5b0');
+      document.getElementById('rep-id').value = '';
+      document.getElementById('rep-desc').value = '';
+      loadCommunityFeed();
+    } else {
+      toast('⚠️ Could not submit. Try again.', '#ffb300');
+    }
+  } catch { toast('⚠️ Could not submit. Try again.', '#ffb300'); }
+  hideLoader();
+}
+
+async function reportPhone() {
+  const ph   = document.getElementById('rep-phone').value.trim();
+  const type = document.getElementById('rep-phone-type').value;
+  if (!ph) return toast('⚠️ Enter a phone number', '#ffb300');
+  try {
+    await fetch('/report/scam', {
+      method: 'POST',
+      headers: {'Content-Type':'application/json'},
+      body: JSON.stringify({type, identifier: ph, desc: 'Reported via Call Shield', email: localStorage.getItem('email')})
+    });
+    toast(`✅ ${ph} reported`, '#00e5b0');
+    document.getElementById('rep-phone').value = '';
+  } catch { toast('⚠️ Report failed', '#ffb300'); }
+}
+
+async function loadCommunityFeed() {
+  const feedEl = document.getElementById('community-feed');
+  if (!feedEl) return;
+  try {
+    const res  = await fetch('/feed/scams');
+    if (!res.ok) throw new Error();
+    const data = await res.json();
+    if (!data.length) { feedEl.innerHTML = '<p style="color:var(--muted);font-size:13px;">No reports yet. Be the first to report!</p>'; return; }
+    const emo = {phishing_link:'🔗',fake_call:'📞',upi_fraud:'💳',sms_scam:'💬',bank_impersonation:'🏦',trai_scam:'📡',courier_scam:'📦',prize_lottery:'🎰'};
+    feedEl.innerHTML = data.slice(0,20).map(r => `
+      <div class="feed-item">
+        <div class="feed-dot ${r.type?.includes('bank')||r.type?.includes('trai')?'red':'yellow'}"></div>
+        <div>
+          <div class="feed-title">${emo[r.type]||'⚠️'} ${(r.type||'').replace(/_/g,' ').toUpperCase()} — ${r.identifier||'N/A'}</div>
+          <div class="feed-meta">${r.desc||''} · ${new Date(r.timestamp).toLocaleString('en-IN')}</div>
+        </div>
+      </div>`).join('');
+  } catch {
+    feedEl.innerHTML = `
+      <div class="feed-item"><div class="feed-dot red"></div><div><div class="feed-title">🏦 BANK IMPERSONATION — +91 98765 43210</div><div class="feed-meta">Fake SBI KYC call · 2 min ago</div></div></div>
+      <div class="feed-item"><div class="feed-dot yellow"></div><div><div class="feed-title">📦 COURIER SCAM — fedex-parcel.xyz</div><div class="feed-meta">Fake delivery phishing link · 15 min ago</div></div></div>
+      <div class="feed-item"><div class="feed-dot red"></div><div><div class="feed-title">💳 UPI FRAUD — refund@ybl</div><div class="feed-meta">Fake Amazon refund UPI · 1 hr ago</div></div></div>`;
+  }
+}
+
+// ═══════════════ HISTORY ═══════════════
+async function saveHistoryEntry(url, verdict, score, type) {
+  const email = localStorage.getItem('email');
+  if (!email) return;
+  try {
+    await fetch('/save-history', {
+      method: 'POST',
+      headers: {'Content-Type':'application/json'},
+      body: JSON.stringify({email, url, type, verdict, score, results: {verdict, score}})
+    });
+  } catch {}
+}
+
+async function loadHistory() {
+  const listEl = document.getElementById('history-list');
+  const email = localStorage.getItem('email');
+  if (!email) { listEl.innerHTML = '<p style="color:var(--muted);font-size:13px;text-align:center;padding:20px;">Login to see history.</p>'; return; }
+  listEl.innerHTML = '<p style="color:var(--muted);font-size:13px;text-align:center;padding:20px;">Loading...</p>';
   try {
     const res = await fetch(`/history?email=${encodeURIComponent(email)}`);
-    const history = await res.json();
-
-    const list = document.getElementById("historyList");
-    list.innerHTML = "";
-
-    if (history.length === 0) {
-      list.innerHTML = "<p class='text-gray-400'>No history yet</p>";
-      return;
-    }
-
-    history.forEach(entry => {
-      const item = document.createElement("div");
-      item.className = "p-2 bg-gray-800 rounded hover:bg-gray-700 cursor-pointer";
-      const dateStr = new Date(entry.timestamp).toLocaleString();
-item.textContent = `${entry.url || "Unknown URL"} – ${dateStr}`;
-
-      item.onclick = () => loadHistoryEntry(entry);
-      list.appendChild(item);
-    });
-  } catch (err) {
-    console.error("❌ Failed to load history:", err);
+    if (!res.ok) throw new Error();
+    const data = await res.json();
+    if (!data.length) { listEl.innerHTML = '<p style="color:var(--muted);font-size:13px;text-align:center;padding:20px;">No scan history yet.</p>'; return; }
+    const vCol = v => v?.includes('SAFE')?'var(--ok)':v?.includes('SUSPICIOUS')?'var(--warn)':'var(--danger)';
+    listEl.innerHTML = data.map(h => `
+      <div class="hist-item">
+        <div class="h-url">${h.url || 'No URL'}</div>
+        <div class="h-verdict" style="color:${vCol(h.verdict)}">${h.verdict || '—'} ${h.score!=null?`(${h.score}/100)`:''}</div>
+        <div class="h-time">${h.type?.replace(/_/g,' ') || ''} · ${new Date(h.timestamp).toLocaleString('en-IN')}</div>
+      </div>`).join('');
+  } catch {
+    listEl.innerHTML = '<p style="color:var(--muted);font-size:13px;text-align:center;padding:20px;">Could not load history.</p>';
   }
 }
 
-// Handle clicking a history entry
-function loadHistoryEntry(entry) {
-  console.log("Loading history entry:", entry);
-
-  // Restore saved data
-  scanResults = entry.scanResults || {};
-  perfResults = entry.perfResults || {};
-  seoResults = entry.seoResults || {};
-
-  // Re-render panels
-  renderScanResults();
-  renderPerfResults();
-  renderSEOResults();
-
-  // Optionally regenerate AI summary
-  generateFinalAI();
-
-  // Close sidebar after clicking
-  toggleSidebar();
+// ═══════════════ HOME CHART ═══════════════
+function initHomeChart() {
+  const ctx = document.getElementById('home-chart').getContext('2d');
+  new Chart(ctx, {
+    type: 'doughnut',
+    data: {
+      labels: ['Phishing Links','Fake Calls','UPI Fraud','Scam SMS','Impersonation'],
+      datasets: [{data:[38,27,19,11,5],backgroundColor:['#ff3d3d','#ffb300','#6c47ff','#ff4f7b','#00e5b0'],borderWidth:0}]
+    },
+    options: {responsive:true,plugins:{legend:{position:'right',labels:{color:'#6b7a99',font:{size:11},boxWidth:12}}}}
+  });
 }
 
-// Load history whenever page opens
-window.addEventListener("DOMContentLoaded", loadHistory);
+// ═══════════════ TTS ENGINE ═══════════════
+function _loadVoices() { _voices = window.speechSynthesis ? speechSynthesis.getVoices() : []; }
+if (window.speechSynthesis) {
+  speechSynthesis.onvoiceschanged = _loadVoices;
+  _loadVoices();
+}
+document.addEventListener('click', () => _loadVoices(), { once: true });
+document.addEventListener('touchstart', () => _loadVoices(), { once: true });
 
-function renderScanResults() {
-  document.getElementById("sslResults").innerHTML =
-    `<h2>SSL/TLS Scan</h2>${renderScore(scanResults.ssl)}${scanResults.ssl.join("<br>")}`;
-  document.getElementById("headerResults").innerHTML =
-    `<h2>Security Headers</h2>${renderScore(scanResults.headers)}${scanResults.headers.join("<br>")}`;
-  document.getElementById("libsResults").innerHTML =
-    `<h2>Outdated JS Libraries</h2>${renderScore(scanResults.libs)}${scanResults.libs.join("<br>")}`;
-  document.getElementById("xssResults").innerHTML =
-    `<h2>XSS</h2>${renderScore(scanResults.xss)}${scanResults.xss.join("<br>")}`;
-  document.getElementById("portsResults").innerHTML =
-    `<h2>Open Ports</h2>${renderScore(scanResults.ports)}${scanResults.ports.join("<br>")}`;
-  document.getElementById("csrfResults").innerHTML =
-    `<h2>CSRF</h2>${renderScore(scanResults.csrf)}${scanResults.csrf.join("<br>")}`;
-  document.getElementById("sensitiveResults").innerHTML =
-    `<h2>Sensitive Data</h2>${renderScore(scanResults.sensitive)}${scanResults.sensitive.join("<br>")}`;
-
-  updateChart();
-  generateAISecurity();
+function _pickVoice(lang) {
+  const voices = _voices.length ? _voices : (window.speechSynthesis ? speechSynthesis.getVoices() : []);
+  return voices.find(v => v.lang === lang)
+      || voices.find(v => v.lang.startsWith(lang.split('-')[0]) && v.lang.includes('IN'))
+      || voices.find(v => v.lang.startsWith(lang.split('-')[0]))
+      || (voices.length ? voices[0] : null);
 }
 
-function renderPerfResults() {
-  document.getElementById("pageloadResults").innerHTML =
-    `<h2>Page Load</h2>${renderScore(perfResults.pageload)}${perfResults.pageload.join("<br>")}`;
-  document.getElementById("serverTimeResults").innerHTML =
-    `<h2>Server Response</h2>${renderScore(perfResults.server)}${perfResults.server.join("<br>")}`;
-  document.getElementById("imageResults").innerHTML =
-    `<h2>Images</h2>${renderScore(perfResults.images)}${perfResults.images.join("<br>")}`;
-  document.getElementById("jsCssResults").innerHTML =
-    `<h2>JS/CSS</h2>${renderScore(perfResults.jsCss)}${perfResults.jsCss.join("<br>")}`;
-  document.getElementById("resourceResults").innerHTML =
-    `<h2>Resources</h2>${renderScore(perfResults.resources)}${perfResults.resources.join("<br>")}`;
-
-  updatePerfChart();
-  generateAIPerf();
+function speakText(text, forceLang) {
+  return new Promise(resolve => {
+    if (!window.speechSynthesis) { resolve(); return; }
+    // Strip HTML, emojis, special chars for clean TTS
+    const clean = (text || '')
+      .replace(/<[^>]+>/g, ' ')
+      .replace(/[\u{1F300}-\u{1FFFF}|\u{2600}-\u{26FF}|\u{2700}-\u{27BF}|\u{FE00}-\u{FEFF}|\u{1F900}-\u{1F9FF}|🔴|⚠️|✅|🚨|🛡️|📞|💳|🎙️|🤖|📋|🔍|🌐|👤|🚪|📊|🔊|🏠|🔗|📷|💬|⋯|🏦|📡|📦|🎰|🟢|🔵|🟦|🟠|❌|▶|⏹]/gu, ' ')
+      .replace(/\s+/g, ' ').trim();
+    if (!clean || clean.length < 2) { resolve(); return; }
+    speechSynthesis.cancel();
+    setTimeout(() => {
+      const utter = new SpeechSynthesisUtterance(clean);
+      const lang  = forceLang || ttsLang;
+      utter.lang   = lang;
+      utter.rate   = lang === 'kn-IN' ? 0.80 : lang === 'hi-IN' ? 0.84 : 0.90;
+      utter.pitch  = 1; utter.volume = 1;
+      const v = _pickVoice(lang);
+      if (v) utter.voice = v;
+      const safeTm = setTimeout(resolve, Math.max(clean.length * 80, 3000));
+      utter.onend  = () => { clearTimeout(safeTm); resolve(); };
+      utter.onerror = () => { clearTimeout(safeTm); resolve(); };
+      try { speechSynthesis.speak(utter); } catch(e) { clearTimeout(safeTm); resolve(); }
+    }, 80);
+  });
 }
 
-function renderSEOResults() {
-  document.getElementById("metaResults").innerHTML =
-    `<h2>Meta Tags</h2>${renderScore(seoResults.meta)}${seoResults.meta.join("<br>")}`;
-  document.getElementById("keywordResults").innerHTML =
-    `<h2>Keywords</h2>${seoResults.keywords.join("<br>")}`;
-  document.getElementById("headingResults").innerHTML =
-    `<h2>Headings</h2>${renderScore(seoResults.headings)}${seoResults.headings.join("<br>")}`;
-  document.getElementById("urlResults").innerHTML =
-    `<h2>URL</h2>${renderScore(seoResults.url)}${seoResults.url.join("<br>")}`;
-  document.getElementById("mobileResults").innerHTML =
-    `<h2>Mobile</h2>${renderScore(seoResults.mobile)}${seoResults.mobile.join("<br>")}`;
-  document.getElementById("brokenResults").innerHTML =
-    `<h2>Broken Links</h2>${renderScore(seoResults.broken)}${seoResults.broken.join("<br>")}`;
-  document.getElementById("seoImageResults").innerHTML =
-    `<h2>Images</h2>${renderScore(seoResults.images)}${seoResults.images.join("<br>")}`;
-  document.getElementById("sitemapResults").innerHTML =
-    `<h2>Sitemap/Robots</h2>${renderScore(seoResults.sitemap)}${seoResults.sitemap.join("<br>")}`;
-  document.getElementById("backlinkResults").innerHTML =
-    `<h2>Backlinks</h2>${seoResults.backlinks.join("<br>")}`;
-  document.getElementById("crawlResults").innerHTML =
-    `<h2>Crawl</h2>${renderScore(seoResults.crawl)}${seoResults.crawl.join("<br>")}`;
+// ═══════════════ FULL i18n TRANSLATIONS ═══════════════
+const I18N = {
+  'en-IN': {
+    logo: '🛡️ ScamShield',
+    'nav.home': 'Home', 'nav.scan': 'Link Scan', 'nav.qr': 'UPI Scan', 'nav.msg': 'Messages', 'nav.more': 'More',
+    'hero.title': 'Hi, {name} 👋',
+    'hero.sub': 'Your real-time scam protection hub. India saw 11.28L+ cybercrime complaints in 2023.',
+    'quick.label': '⚡ Quick Threat Check', 'quick.ph': 'Paste URL / UPI ID / phone / message...', 'quick.btn': 'Go',
+    'scan.title': '🔗 Link Scanner', 'scan.sub': 'Detect phishing, spoofed domains & malicious URLs',
+    'scan.ph': 'Paste URL (e.g. sbi-kyc.xyz/login)', 'scan.btn': '🔍 Scan This Link',
+    'msg.title': '💬 Message Analyzer', 'msg.sub': 'AI-powered scam detection for SMS & WhatsApp',
+    'msg.ph': 'Paste suspicious SMS or WhatsApp message here...', 'msg.btn': '🤖 Analyze with AI',
+    'more.title': 'More Tools', 'more.sub': 'All ScamShield features',
+    'chat.greeting': "Hi! I'm your anti-scam assistant. Ask me anything about phishing, UPI fraud, fake calls, or TRAI scams.",
+    'chat.ph': 'Ask about scams...', 'chat.send': 'Send',
+    'upi.ph': 'UPI ID (e.g. support@icici, refund@ybl)', 'upi.btn': 'Check',
+    'audit.ph': 'example.com', 'audit.btn': 'Scan',
+    'stats.scams': 'Scams Blocked', 'stats.safe': 'Protection Rate', 'stats.urls': 'Links Scanned', 'stats.msgs': 'Messages Checked',
+    'ath.title': 'Add to Home Screen', 'ath.sub': 'Install ScamShield for quick access',
+    'ath.btn': '📲 Install App',
+  },
+  'hi-IN': {
+    logo: '🛡️ स्कैमशील्ड',
+    'nav.home': 'होम', 'nav.scan': 'लिंक स्कैन', 'nav.qr': 'UPI स्कैन', 'nav.msg': 'संदेश', 'nav.more': 'अधिक',
+    'hero.title': 'नमस्ते, {name} 👋',
+    'hero.sub': 'आपका रीयल-टाइम स्कैम सुरक्षा केंद्र। भारत में 2023 में 11.28 लाख+ साइबर अपराध शिकायतें।',
+    'quick.label': '⚡ त्वरित खतरा जाँच', 'quick.ph': 'URL / UPI ID / फ़ोन / संदेश पेस्ट करें...', 'quick.btn': 'जाँचें',
+    'scan.title': '🔗 लिंक स्कैनर', 'scan.sub': 'फिशिंग, नकली डोमेन और दुर्भावनापूर्ण URL का पता लगाएँ',
+    'scan.ph': 'URL पेस्ट करें (जैसे sbi-kyc.xyz/login)', 'scan.btn': '🔍 इस लिंक को स्कैन करें',
+    'msg.title': '💬 संदेश विश्लेषक', 'msg.sub': 'SMS और WhatsApp के लिए AI-संचालित स्कैम पहचान',
+    'msg.ph': 'संदिग्ध SMS या WhatsApp संदेश यहाँ पेस्ट करें...', 'msg.btn': '🤖 AI से विश्लेषण करें',
+    'more.title': 'और टूल्स', 'more.sub': 'सभी ScamShield सुविधाएँ',
+    'chat.greeting': 'नमस्ते! मैं आपका एंटी-स्कैम सहायक हूँ। फिशिंग, UPI धोखाधड़ी, नकली कॉल या TRAI स्कैम के बारे में कुछ भी पूछें।',
+    'chat.ph': 'स्कैम के बारे में पूछें...', 'chat.send': 'भेजें',
+    'upi.ph': 'UPI ID (जैसे support@icici, refund@ybl)', 'upi.btn': 'जाँचें',
+    'audit.ph': 'example.com', 'audit.btn': 'स्कैन करें',
+    'stats.scams': 'स्कैम रोके', 'stats.safe': 'सुरक्षा दर', 'stats.urls': 'लिंक स्कैन', 'stats.msgs': 'संदेश जाँचे',
+    'ath.title': 'होम स्क्रीन पर जोड़ें', 'ath.sub': 'त्वरित पहुँच के लिए ScamShield इंस्टॉल करें',
+    'ath.btn': '📲 ऐप इंस्टॉल करें',
+  },
+  'kn-IN': {
+    logo: '🛡️ ಸ್ಕ್ಯಾಮ್‌ಶೀಲ್ಡ್',
+    'nav.home': 'ಮನೆ', 'nav.scan': 'ಲಿಂಕ್ ಸ್ಕ್ಯಾನ್', 'nav.qr': 'UPI ಸ್ಕ್ಯಾನ್', 'nav.msg': 'ಸಂದೇಶ', 'nav.more': 'ಇನ್ನಷ್ಟು',
+    'hero.title': 'ನಮಸ್ಕಾರ, {name} 👋',
+    'hero.sub': 'ನಿಮ್ಮ ರಿಯಲ್-ಟೈಮ್ ಸ್ಕ್ಯಾಮ್ ರಕ್ಷಣಾ ಕೇಂದ್ರ। ಭಾರತದಲ್ಲಿ 2023 ರಲ್ಲಿ 11.28 ಲಕ್ಷ+ ಸೈಬರ್ ಅಪರಾಧ ದೂರುಗಳು।',
+    'quick.label': '⚡ ತ್ವರಿತ ಅಪಾಯ ಪರಿಶೀಲನೆ', 'quick.ph': 'URL / UPI ID / ಫೋನ್ / ಸಂದೇಶ ಅಂಟಿಸಿ...', 'quick.btn': 'ಪರಿಶೀಲಿಸಿ',
+    'scan.title': '🔗 ಲಿಂಕ್ ಸ್ಕ್ಯಾನರ್', 'scan.sub': 'ಫಿಶಿಂಗ್, ನಕಲಿ ಡೊಮೇನ್ ಮತ್ತು ದುರ್ಭಾವನೆ URL ಪತ್ತೆ ಮಾಡಿ',
+    'scan.ph': 'URL ಅಂಟಿಸಿ (ಉದಾ: sbi-kyc.xyz/login)', 'scan.btn': '🔍 ಈ ಲಿಂಕ್ ಸ್ಕ್ಯಾನ್ ಮಾಡಿ',
+    'msg.title': '💬 ಸಂದೇಶ ವಿಶ್ಲೇಷಕ', 'msg.sub': 'SMS ಮತ್ತು WhatsApp ಗಾಗಿ AI ಚಾಲಿತ ಸ್ಕ್ಯಾಮ್ ಪತ್ತೆ',
+    'msg.ph': 'ಅನುಮಾನಾಸ್ಪದ SMS ಅಥವಾ WhatsApp ಸಂದೇಶ ಇಲ್ಲಿ ಅಂಟಿಸಿ...', 'msg.btn': '🤖 AI ಜೊತೆ ವಿಶ್ಲೇಷಿಸಿ',
+    'more.title': 'ಹೆಚ್ಚಿನ ಸಾಧನಗಳು', 'more.sub': 'ಎಲ್ಲಾ ScamShield ವೈಶಿಷ್ಟ್ಯಗಳು',
+    'chat.greeting': 'ನಮಸ್ಕಾರ! ನಾನು ನಿಮ್ಮ ಆಂಟಿ-ಸ್ಕ್ಯಾಮ್ ಸಹಾಯಕ. ಫಿಶಿಂಗ್, UPI ಮೋಸ, ನಕಲಿ ಕಾಲ್ ಅಥವಾ TRAI ಸ್ಕ್ಯಾಮ್ ಬಗ್ಗೆ ಏನಾದರೂ ಕೇಳಿ.',
+    'chat.ph': 'ಸ್ಕ್ಯಾಮ್ ಬಗ್ಗೆ ಕೇಳಿ...', 'chat.send': 'ಕಳುಹಿಸಿ',
+    'upi.ph': 'UPI ID (ಉದಾ: support@icici, refund@ybl)', 'upi.btn': 'ಪರಿಶೀಲಿಸಿ',
+    'audit.ph': 'example.com', 'audit.btn': 'ಸ್ಕ್ಯಾನ್ ಮಾಡಿ',
+    'stats.scams': 'ಸ್ಕ್ಯಾಮ್ ತಡೆದವು', 'stats.safe': 'ರಕ್ಷಣಾ ದರ', 'stats.urls': 'ಲಿಂಕ್ ಸ್ಕ್ಯಾನ್', 'stats.msgs': 'ಸಂದೇಶ ಪರಿಶೀಲಿಸಿದೆ',
+    'ath.title': 'ಹೋಮ್ ಸ್ಕ್ರೀನ್‌ಗೆ ಸೇರಿಸಿ', 'ath.sub': 'ತ್ವರಿತ ಪ್ರವೇಶಕ್ಕಾಗಿ ScamShield ಸ್ಥಾಪಿಸಿ',
+    'ath.btn': '📲 ಅಪ್ಲಿಕೇಶನ್ ಸ್ಥಾಪಿಸಿ',
+  }
+};
 
-  updateSEOChart();
-  generateAISEO();
+function _t(key, vars) {
+  const T = I18N[ttsLang] || I18N['en-IN'];
+  let s = T[key] || I18N['en-IN'][key] || key;
+  if (vars) Object.entries(vars).forEach(([k,v]) => { s = s.replace('{'+k+'}', v); });
+  return s;
 }
 
+function applyTranslations(lang) {
+  const T = I18N[lang] || I18N['en-IN'];
+  const name = localStorage.getItem('username') || 'User';
+  const setText = (sel, key, vars) => {
+    const els = document.querySelectorAll(sel);
+    els.forEach(el => { if(el) { let v = T[key]||I18N['en-IN'][key]||''; if(vars) Object.entries(vars).forEach(([k,val])=>v=v.replace('{'+k+'}',val)); el.textContent = v; } });
+  };
+  const setPlaceholder = (id, key) => { const el = document.getElementById(id); if(el) el.placeholder = T[key]||I18N['en-IN'][key]||''; };
+  const setInnerHTML = (id, key, vars) => { const el = document.getElementById(id); if(el){ let v=T[key]||I18N['en-IN'][key]||''; if(vars)Object.entries(vars).forEach(([k,val])=>v=v.replace('{'+k+'}',val)); el.innerHTML=v; } };
+
+  // Logo
+  document.getElementById('topbar-logo').textContent = T.logo || '🛡️ ScamShield';
+
+  // Nav labels
+  setText('#nb-home .nav-lbl', 'nav.home');
+  setText('#nb-scan .nav-lbl', 'nav.scan');
+  setText('#qr-nav-btn .nav-lbl', 'nav.qr');
+  setText('#nb-msg .nav-lbl', 'nav.msg');
+  setText('#nb-more .nav-lbl', 'nav.more');
+
+  // Hero
+  const heroH1 = document.querySelector('#page-home .hero-banner h1');
+  if (heroH1) heroH1.textContent = (T['hero.title'] || 'Hi, {name} 👋').replace('{name}', name);
+  const heroP = document.querySelector('#page-home .hero-banner p');
+  if (heroP) heroP.textContent = T['hero.sub'] || '';
+
+  // Quick check
+  const ql = document.querySelector('.quick-label');
+  if (ql) ql.textContent = T['quick.label'] || '';
+  setPlaceholder('quick-inp', 'quick.ph');
+  const qBtn = document.querySelector('.quick-input-wrap .btn');
+  if (qBtn) qBtn.textContent = T['quick.btn'] || 'Go';
+
+  // Stats labels
+  const statTiles = document.querySelectorAll('.stat-tile');
+  const statKeys = ['stats.scams','stats.safe','stats.urls','stats.msgs'];
+  statTiles.forEach((t,i) => { const lbl=t.querySelector('.stat-lbl'); if(lbl&&T[statKeys[i]]) lbl.textContent=T[statKeys[i]]; });
+
+  // Scan page
+  const scanTitle = document.querySelector('#page-scan .section-title');
+  if (scanTitle) scanTitle.textContent = T['scan.title'] || '';
+  const scanSub = document.querySelector('#page-scan .section-sub');
+  if (scanSub) scanSub.textContent = T['scan.sub'] || '';
+  setPlaceholder('phish-url', 'scan.ph');
+  const scanBtn = document.querySelector('#page-scan .btn-primary');
+  if (scanBtn) scanBtn.textContent = T['scan.btn'] || '';
+
+  // Messages page
+  const msgTitle = document.querySelector('#page-msg .section-title');
+  if (msgTitle) msgTitle.textContent = T['msg.title'] || '';
+  const msgSub = document.querySelector('#page-msg .section-sub');
+  if (msgSub) msgSub.textContent = T['msg.sub'] || '';
+  setPlaceholder('msg-inp', 'msg.ph');
+  const msgBtn = document.querySelector('#page-msg .btn-primary');
+  if (msgBtn) msgBtn.textContent = T['msg.btn'] || '';
+
+  // More
+  const moreTitle = document.querySelector('#page-more .section-title');
+  if (moreTitle) moreTitle.textContent = T['more.title'] || '';
+  const moreSub = document.querySelector('#page-more .section-sub');
+  if (moreSub) moreSub.textContent = T['more.sub'] || '';
+
+  // Chat
+  setPlaceholder('chat-inp', 'chat.ph');
+  const chatSend = document.querySelector('#sub-chat .btn-primary');
+  if (chatSend) chatSend.textContent = T['chat.send'] || 'Send';
+
+  // UPI
+  setPlaceholder('upi-inp', 'upi.ph');
+  const upiBtn = document.querySelector('#sub-upi .btn-primary');
+  if (upiBtn) upiBtn.textContent = T['upi.btn'] || 'Check';
+
+  // Audit
+  setPlaceholder('audit-url', 'audit.ph');
+  const auditBtn = document.querySelector('#sub-audit .btn-primary');
+  if (auditBtn) auditBtn.textContent = T['audit.btn'] || 'Scan';
+
+  // Chat greeting
+  const greet = document.getElementById('chat-greeting');
+  if (greet) {
+    const g = T['chat.greeting'] || I18N['en-IN']['chat.greeting'] || '';
+    greet.innerHTML = `<strong style="color:#a78bfa;">ScamShield AI:</strong> ${g} <button onclick="speakText(document.getElementById('chat-greeting').textContent)" style="background:none;border:none;cursor:pointer;font-size:14px;margin-left:6px;opacity:0.7;" title="Read aloud">🔊</button>`;
+  }
+
+  // Add to Home Screen banner
+  const athTitle = document.getElementById('ath-title');
+  const athSub = document.getElementById('ath-sub');
+  const athBtn = document.getElementById('ath-btn');
+  if (athTitle) athTitle.textContent = T['ath.title'] || '';
+  if (athSub) athSub.textContent = T['ath.sub'] || '';
+  if (athBtn) athBtn.textContent = T['ath.btn'] || '📲 Install App';
+}
+
+function setAppLanguage(lang) {
+  ttsLang = lang;
+  ['global-lang','sim-lang','chat-lang','upi-lang','qr-lang'].forEach(id => {
+    const el = document.getElementById(id); if (el) el.value = lang;
+  });
+  localStorage.setItem('ss_lang', lang);
+  applyTranslations(lang);
+  const previews = { 'en-IN': 'Language set to English', 'hi-IN': 'भाषा हिंदी में बदली गई', 'kn-IN': 'ಭಾಷೆಯನ್ನು ಕನ್ನಡಕ್ಕೆ ಬದಲಾಯಿಸಲಾಗಿದೆ' };
+  speakText(previews[lang] || 'Language changed', lang);
+}
+
+// ═══════════════ CALL SIMULATOR ═══════════════
+const simScripts = {
+  bank: [
+    {role:'system',text:'[System] Call from +91 98765 43210 · Risk: 75 · AI Shield activated'},
+    {role:'caller',text:'Hello, this is from State Bank of India. Calling about your account.'},
+    {role:'ai',text:'Haan, SBI? Which branch are you calling from?'},
+    {role:'caller',text:'Central branch. Your KYC has expired. Account will be blocked.'},
+    {role:'ai',text:'Blocked? I updated KYC last month. Can I get your employee ID?'},
+    {role:'caller',text:'We need your account number and OTP to fix this immediately.'},
+    {role:'warn',text:'⚠️ SCAM DETECTED: OTP request + urgency + impersonation. Confidence: 95%'},
+    {role:'system',text:'[System] SCAM confirmed. User notified. Number blacklisted.'}
+  ],
+  trai: [
+    {role:'system',text:'[System] TRAI number · Risk: 82 · AI Shield intercepted'},
+    {role:'caller',text:'This is TRAI. Your SIM is flagged for illegal activity. Disconnection in 2 hours.'},
+    {role:'ai',text:'TRAI? Can you give me your official officer ID?'},
+    {role:'caller',text:'No time for IDs! Press 1 to speak to an officer or your SIM is blocked NOW.'},
+    {role:'warn',text:'⚠️ SCAM: TRAI impersonation + urgency pressure. Confidence: 97%'},
+    {role:'system',text:'[System] TRAI never calls users. Call terminated. Number blacklisted.'}
+  ],
+  prize: [
+    {role:'system',text:'[System] Unknown number · Risk: 68 · AI Shield active'},
+    {role:'caller',text:'Congratulations! You have won Rs.50 lakhs in Amazon lucky draw!'},
+    {role:'ai',text:'Wow! Which lottery? I don\'t remember entering any contest.'},
+    {role:'caller',text:'Your number was selected. Just pay Rs.5000 processing fee via UPI.'},
+    {role:'warn',text:'⚠️ ADVANCE FEE SCAM: Pay-to-receive + urgency + impersonation. Confidence: 99%'},
+    {role:'system',text:'[System] Scam confirmed. User protected from Rs.5,000+ loss.'}
+  ]
+};
+
+async function runSim(type) {
+  if (simPlaying) { stopSim(); await new Promise(r=>setTimeout(r,300)); }
+  simPlaying = true;
+  if (window.speechSynthesis) speechSynthesis.cancel();
+  const box = document.getElementById('call-sim');
+  box.innerHTML = '';
+
+  for (const line of simScripts[type]) {
+    if (!simPlaying) break;
+    await new Promise(r => setTimeout(r, line.role==='system'?700:line.role==='warn'?600:1200));
+    if (!simPlaying) break;
+
+    const d = document.createElement('div');
+    d.className = line.role==='caller'?'line-caller':line.role==='ai'?'line-ai':line.role==='warn'?'line-warn':'line-system';
+    const prefix = line.role==='caller'?'Caller: ':line.role==='ai'?'AI Shield: ':'';
+    d.textContent = prefix + line.text;
+    box.appendChild(d);
+    box.scrollTop = box.scrollHeight;
+
+    if (line.role === 'caller') await speakText(line.text, 'en-IN');
+    else if (line.role === 'ai') await speakText(line.text);
+    else if (line.role === 'warn') await speakText('Warning! ' + line.text);
+    if (!simPlaying) break;
+    await new Promise(r => setTimeout(r, 800));
+  }
+  simPlaying = false;
+}
+
+function stopSim() {
+  simPlaying = false;
+  if (window.speechSynthesis) speechSynthesis.cancel();
+}
+
+// ═══════════════ QR SCANNER ═══════════════
+function openQR() {
+  document.querySelectorAll('.page').forEach(p => p.classList.remove('active'));
+  document.querySelectorAll('.nav-btn').forEach(b => b.classList.remove('active'));
+  document.getElementById('page-qr').classList.add('active');
+  document.getElementById('qr-result-overlay').classList.remove('show');
+  startQR();
+}
+
+async function startQR() {
+  try {
+    qrStream = await navigator.mediaDevices.getUserMedia({ video: { facingMode: 'environment' } });
+    const video = document.getElementById('qr-video');
+    video.srcObject = qrStream;
+    await video.play();
+    scanQRFrame();
+  } catch(e) {
+    toast('📷 Camera access denied. Please allow camera.', '#ff3d3d');
+    showPage('home','nb-home');
+  }
+}
+
+function scanQRFrame() {
+  const video  = document.getElementById('qr-video');
+  const canvas = document.getElementById('qr-canvas');
+  if (!qrStream || video.paused || video.ended) return;
+  if (video.videoWidth === 0) { qrAnimFrame = requestAnimationFrame(scanQRFrame); return; }
+
+  canvas.width  = video.videoWidth;
+  canvas.height = video.videoHeight;
+  const ctx = canvas.getContext('2d');
+  ctx.drawImage(video, 0, 0, canvas.width, canvas.height);
+  const imageData = ctx.getImageData(0, 0, canvas.width, canvas.height);
+  const code = jsQR(imageData.data, imageData.width, imageData.height, { inversionAttempts: 'dontInvert' });
+
+  if (code) {
+    stopQR();
+    handleQRCode(code.data);
+    return;
+  }
+  qrAnimFrame = requestAnimationFrame(scanQRFrame);
+}
+
+function stopQR() {
+  if (qrAnimFrame) { cancelAnimationFrame(qrAnimFrame); qrAnimFrame = null; }
+  if (qrStream) { qrStream.getTracks().forEach(t => t.stop()); qrStream = null; }
+}
+
+function handleQRCode(raw) {
+  let parsed = null;
+  try {
+    if (raw.toLowerCase().startsWith('upi:') || raw.startsWith('upi://')) {
+      const url    = new URL(raw);
+      const params = url.searchParams;
+      parsed = { pa: params.get('pa')||'', pn: params.get('pn')||'Unknown', am: params.get('am')||'', cu: params.get('cu')||'INR', tn: params.get('tn')||'' };
+    } else if (raw.includes('pa=')) {
+      const part = raw.includes('?') ? raw.split('?')[1] : raw;
+      const params = new URLSearchParams(part);
+      parsed = { pa: params.get('pa')||'', pn: params.get('pn')||'Unknown', am: params.get('am')||'', cu: params.get('cu')||'INR', tn: params.get('tn')||'' };
+    }
+  } catch {}
+
+  if (!parsed || !parsed.pa) {
+    showQRResult(false, '❌', 'Not a UPI QR Code', 'This QR code does not contain a valid UPI payment link.', null, raw);
+    return;
+  }
+
+  const fraud = upiAnalysis(parsed.pa);
+  const isRisky = fraud.verdict === 'HIGH RISK' || fraud.verdict === 'SUSPICIOUS';
+  showQRResult(!isRisky, isRisky?'🚨':'✅', isRisky?fraud.verdict:'UPI Verified', isRisky?fraud.summary:'This UPI ID appears safe. Verify the payee name before paying.', parsed, raw);
+}
+
+function showQRResult(safe, ico, title, sub, upiData, raw) {
+  const overlay = document.getElementById('qr-result-overlay');
+  document.getElementById('qr-ico').textContent    = ico;
+  document.getElementById('qr-rtitle').textContent = title;
+  document.getElementById('qr-rtitle').style.color = safe ? 'var(--ok)' : 'var(--danger)';
+  document.getElementById('qr-rsub').textContent   = sub;
+
+  const qrMsg = title + '. ' + sub + (upiData?.pa ? '. Payee: ' + upiData.pn + '. UPI: ' + upiData.pa : '');
+  setTimeout(() => speakText(qrMsg), 400);
+
+  const infoEl = document.getElementById('qr-info');
+  if (upiData?.pa) {
+    infoEl.style.display = 'block';
+    infoEl.innerHTML = `
+      <div class="qr-upi-row"><span class="lbl">UPI ID</span><span class="val">${upiData.pa}</span></div>
+      <div class="qr-upi-row"><span class="lbl">Payee</span><span class="val">${upiData.pn}</span></div>
+      ${upiData.am ? `<div class="qr-upi-row"><span class="lbl">Amount</span><span class="val">${upiData.cu} ${parseFloat(upiData.am).toLocaleString('en-IN')}</span></div>` : ''}
+      ${upiData.tn ? `<div class="qr-upi-row"><span class="lbl">Note</span><span class="val">${upiData.tn}</span></div>` : ''}`;
+  } else { infoEl.style.display = 'none'; }
+
+  const appsGrid = document.getElementById('pay-apps-grid');
+  if (safe && upiData?.pa) {
+    const upiLink = `upi://pay?pa=${encodeURIComponent(upiData.pa)}&pn=${encodeURIComponent(upiData.pn)}${upiData.am?'&am='+upiData.am:''}${upiData.cu?'&cu='+upiData.cu:''}`;
+    appsGrid.style.display = 'grid';
+    appsGrid.innerHTML = `
+      <a href="${upiLink}" class="pay-app-btn"><span class="app-ico">🟢</span> PhonePe</a>
+      <a href="${upiLink}" class="pay-app-btn"><span class="app-ico">🔵</span> Google Pay</a>
+      <a href="${upiLink}" class="pay-app-btn"><span class="app-ico">🟦</span> Paytm</a>
+      <a href="${upiLink}" class="pay-app-btn"><span class="app-ico">🟠</span> BHIM</a>`;
+  } else if (!safe && upiData?.pa) {
+    appsGrid.style.display = 'grid';
+    appsGrid.innerHTML = `<div style="grid-column:1/-1;background:rgba(255,61,61,0.1);border:1px solid rgba(255,61,61,0.2);border-radius:12px;padding:14px;text-align:center;font-size:13px;color:#fca5a5;">⚠️ Payment blocked — fraud indicators found.</div>`;
+  } else { appsGrid.style.display = 'none'; appsGrid.innerHTML = ''; }
+
+  overlay.classList.add('show');
+}
+
+function retryQR() {
+  document.getElementById('qr-result-overlay').classList.remove('show');
+  if (window.speechSynthesis) speechSynthesis.cancel();
+  startQR();
+}
+
+function speakQRResult() {
+  const title = document.getElementById('qr-rtitle').textContent;
+  const sub   = document.getElementById('qr-rsub').textContent;
+  const info  = (document.getElementById('qr-info').textContent || '').replace(/\s+/g,' ').trim();
+  speakText(title + '. ' + sub + (info ? '. ' + info : ''));
+}
+
+// ═══════════════ EQUAL AI ═══════════════
+function openEqualAI() {
+  const store = 'https://play.google.com/store/apps/details?id=in.equal.ai.assistant';
+  const ua = navigator.userAgent.toLowerCase();
+  if (ua.includes('android')) {
+    window.location.href = 'intent://open#Intent;scheme=equal;package=in.equal.ai.assistant;S.browser_fallback_url=' + encodeURIComponent(store) + ';end';
+  } else {
+    window.open(store, '_blank');
+  }
+}
+
+// ═══════════════ PWA ADD TO HOME SCREEN ═══════════════
+let _deferredPrompt = null;
+
+function initPWAInstall() {
+  const banner = document.getElementById('ath-banner');
+  const ua = navigator.userAgent.toLowerCase();
+  const isIOS = /iphone|ipad|ipod/.test(ua);
+  const isAndroid = /android/.test(ua);
+  const isStandalone = window.matchMedia('(display-mode: standalone)').matches || window.navigator.standalone;
+
+  if (isStandalone) return; // Already installed
+
+  // Listen for beforeinstallprompt (Chrome/Android)
+  window.addEventListener('beforeinstallprompt', (e) => {
+    e.preventDefault();
+    _deferredPrompt = e;
+    if (banner) banner.style.display = 'flex';
+  });
+
+  // iOS: show manual instructions
+  if (isIOS && !isStandalone) {
+    setTimeout(() => {
+      if (banner) {
+        banner.style.display = 'flex';
+        const btn = document.getElementById('ath-btn');
+        if (btn) {
+          btn.textContent = '📲 How to Install';
+          btn.onclick = showIOSInstallGuide;
+        }
+      }
+    }, 2000);
+  }
+
+  // Android fallback if no prompt fires within 3s
+  if (isAndroid) {
+    setTimeout(() => {
+      if (!_deferredPrompt && banner && banner.style.display === 'none') {
+        banner.style.display = 'flex';
+      }
+    }, 3000);
+  }
+}
+
+async function triggerInstall() {
+  if (_deferredPrompt) {
+    _deferredPrompt.prompt();
+    const { outcome } = await _deferredPrompt.userChoice;
+    _deferredPrompt = null;
+    const banner = document.getElementById('ath-banner');
+    if (outcome === 'accepted' && banner) banner.style.display = 'none';
+    toast(outcome === 'accepted' ? '✅ App installed!' : 'Installation cancelled', '#00e5b0');
+  } else {
+    showIOSInstallGuide();
+  }
+}
+
+function showIOSInstallGuide() {
+  const ua = navigator.userAgent.toLowerCase();
+  const isIOS = /iphone|ipad|ipod/.test(ua);
+  const msg = isIOS
+    ? 'To install: tap the Share button (□↑) in Safari, then tap "Add to Home Screen"'
+    : 'Open this page in Chrome and tap the menu (⋮) → "Add to Home screen"';
+  toast(msg, '#6c47ff');
+  setTimeout(() => toast(msg, '#6c47ff'), 4000);
+}
+
+// ═══════════════ PULSE ANIMATION ═══════════════
+document.addEventListener('visibilitychange', () => { if (document.hidden) stopQR(); });
+
+// ═══════════════ FILE SCANNER ═══════════════
+let _fsFile = null;
+let _fsScanResult = null;
+let _fsTTSEnabled = false;
+let _fsSpeaking = false;
+
+function fsGetFileIcon(name) {
+  const ext = (name.split('.').pop() || '').toLowerCase();
+  const m = { pdf:'📄', apk:'📱', exe:'⚙️', zip:'🗜️', rar:'🗜️', jpg:'🖼️', jpeg:'🖼️', png:'🖼️', gif:'🖼️', doc:'📝', docx:'📝', xls:'📊', xlsx:'📊', mp4:'🎬', mp3:'🎵', txt:'📃' };
+  return m[ext] || '📁';
+}
+
+function fsFmtSize(b) {
+  if (b < 1024) return b + ' B';
+  if (b < 1048576) return (b/1024).toFixed(1) + ' KB';
+  return (b/1048576).toFixed(1) + ' MB';
+}
+
+function fsSetFile(file) {
+  _fsFile = file;
+  document.getElementById('fs-drop-zone').style.display = 'none';
+  const p = document.getElementById('fs-file-preview');
+  p.style.display = 'flex';
+  document.getElementById('fs-preview-ico').textContent = fsGetFileIcon(file.name);
+  document.getElementById('fs-preview-name').textContent = file.name;
+  document.getElementById('fs-preview-size').textContent = fsFmtSize(file.size);
+  document.getElementById('fs-log').style.display = 'block';
+  fsLog(`Loaded: ${file.name} (${fsFmtSize(file.size)})`, 'line-ai');
+  // Show TTS banner if not yet enabled
+  if (!_fsTTSEnabled && window.speechSynthesis) {
+    document.getElementById('fs-tts-banner').style.display = 'flex';
+  }
+}
+
+function fsReset() {
+  _fsFile = null; _fsScanResult = null; _fsSpeaking = false;
+  document.getElementById('fs-file-input').value = '';
+  document.getElementById('fs-drop-zone').style.display = 'block';
+  document.getElementById('fs-file-preview').style.display = 'none';
+  document.getElementById('fs-result-card').style.display = 'none';
+  document.getElementById('fs-progress-wrap').style.display = 'none';
+  document.getElementById('fs-log').style.display = 'none';
+  document.getElementById('fs-log').innerHTML = '> System ready';
+  document.getElementById('fs-scan-btn').disabled = false;
+  document.getElementById('fs-tts-banner').style.display = 'none';
+  if (window.speechSynthesis) speechSynthesis.cancel();
+}
+
+function fsLog(msg, cls = '') {
+  const el = document.getElementById('fs-log');
+  el.style.display = 'block';
+  el.innerHTML += `\n<span class="${cls}">&gt; ${msg}</span>`;
+  el.scrollTop = el.scrollHeight;
+}
+
+function fsSetProgress(pct, label) {
+  document.getElementById('fs-progress-fill').style.width = pct + '%';
+  document.getElementById('fs-progress-label').textContent = label;
+  document.getElementById('fs-progress-pct').textContent = pct + '%';
+}
+
+function fsEnableTTS() {
+  _fsTTSEnabled = true;
+  document.getElementById('fs-tts-banner').style.display = 'none';
+  const u = new SpeechSynthesisUtterance('');
+  u.volume = 0;
+  speechSynthesis.speak(u);
+  toast('🔊 Audio enabled', '#00e5b0');
+}
+
+function fsSpeak(text) {
+  if (!window.speechSynthesis) { toast('⚠️ TTS not supported on this browser'); return; }
+  _fsTTSEnabled = true;
+  document.getElementById('fs-tts-banner').style.display = 'none';
+  speechSynthesis.cancel();
+  const u = new SpeechSynthesisUtterance(text);
+  u.lang = ttsLang || 'en-IN';
+  u.rate = 0.95;
+  u.volume = 1;
+  u.onstart = () => {
+    _fsSpeaking = true;
+    const btn = document.getElementById('fs-speak-btn');
+    btn.innerHTML = '⏹ Stop';
+    btn.style.animation = 'pulse 1.5s infinite';
+  };
+  u.onend = u.onerror = () => {
+    _fsSpeaking = false;
+    const btn = document.getElementById('fs-speak-btn');
+    btn.innerHTML = '🔊 Read Aloud';
+    btn.style.animation = '';
+  };
+  speechSynthesis.speak(u);
+}
+
+function fsToggleSpeak() {
+  if (_fsSpeaking) {
+    speechSynthesis.cancel();
+    return;
+  }
+  if (!_fsScanResult) { toast('⚠️ Run a scan first'); return; }
+  const r = _fsScanResult;
+  const statusText = r.status === 'safe' ? 'The file is clean and safe.' : 'Warning! Threat detected in this file!';
+  fsSpeak(`File scan complete. ${statusText} Safety score: ${r.score} percent. ${r.explanation}`);
+}
+
+async function fsStartScan() {
+  if (!_fsFile) { toast('⚠️ Select a file first'); return; }
+
+  const scanBtn = document.getElementById('fs-scan-btn');
+  scanBtn.disabled = true;
+
+  document.getElementById('fs-progress-wrap').style.display = 'block';
+  document.getElementById('fs-result-card').style.display = 'none';
+  document.getElementById('fs-stats-row').style.display = 'none';
+
+  fsSetProgress(8, 'Preparing upload...');
+  fsLog('Connecting to VirusTotal...', 'line-system');
+
+  const fd = new FormData();
+  fd.append('document', _fsFile);
+
+  try {
+    fsSetProgress(25, 'Uploading file...');
+    const res = await fetch('/scan', { method: 'POST', body: fd });
+    fsLog('Uploaded — scanning with 70+ engines...', 'line-system');
+    fsSetProgress(60, 'Scanning engines...');
+
+    const data = await res.json();
+    fsLog('Report received.', 'line-system');
+    fsSetProgress(100, 'Complete');
+    setTimeout(() => document.getElementById('fs-progress-wrap').style.display = 'none', 600);
+
+    _fsScanResult = data;
+    fsRenderResult(data);
+
+    // Auto-speak if TTS enabled
+    if (_fsTTSEnabled) setTimeout(fsToggleSpeak, 800);
+
+  } catch (err) {
+    fsLog('ERROR: Connection failed.', 'line-caller');
+    document.getElementById('fs-progress-wrap').style.display = 'none';
+    toast('❌ Scan failed — check server connection', '#ff3d3d');
+  } finally {
+    scanBtn.disabled = false;
+  }
+}
+
+function fsRenderResult(data) {
+  const isSafe = data.status === 'safe';
+  const isErr  = data.status === 'error';
+  const stats  = data.stats || {};
+
+  // Show card
+  document.getElementById('fs-result-card').style.display = 'block';
+
+  // Score ring
+  const ring = document.getElementById('fs-score-ring');
+  const scoreColor = isErr ? 'var(--warn)' : isSafe ? 'var(--ok)' : 'var(--danger)';
+  ring.style.borderColor = scoreColor;
+  ring.style.boxShadow = `0 0 16px ${scoreColor}40`;
+  document.getElementById('fs-score-val').style.color = scoreColor;
+  document.getElementById('fs-score-val').textContent = (data.score || 0) + '%';
+
+  // Status chip
+  const chip = document.getElementById('fs-status-chip');
+  chip.className = 'chip ' + (isErr ? 'yellow' : isSafe ? 'green' : 'red');
+  chip.textContent = isErr ? '⚠ Error' : isSafe ? '✓ Verified Safe' : '✗ Threat Detected';
+
+  // Title & desc
+  document.getElementById('fs-result-title').textContent = isErr ? 'Scan Error' : isSafe ? 'File is Clean' : 'Threat Found!';
+  document.getElementById('fs-result-desc').textContent = data.explanation || 'No details available.';
+
+  // Stats
+  if (!isErr) {
+    document.getElementById('fs-stats-row').style.display = 'grid';
+    document.getElementById('fs-stat-mal').textContent   = stats.malicious   || 0;
+    document.getElementById('fs-stat-sus').textContent   = stats.suspicious  || 0;
+    document.getElementById('fs-stat-clean').textContent = (stats.harmless||0) + (stats.undetected||0);
+  }
+
+  fsLog(isSafe ? '✓ No threats detected.' : '✗ Malware found — do NOT execute!', isSafe ? 'line-ai' : 'line-caller');
+}
+
+function fsDownloadReport() {
+  if (!_fsScanResult || !_fsFile) { toast('⚠️ Run a scan first'); return; }
+  const r = _fsScanResult;
+  const s = r.stats || {};
+  const isSafe = r.status === 'safe';
+  const now = new Date();
+  const dateStr = now.toLocaleString('en-IN', { timeZone: 'Asia/Kolkata' });
+
+  const html = `<!DOCTYPE html>
+<html lang="en"><head><meta charset="UTF-8"><title>GuardScan Report</title>
+<style>
+body{font-family:'Segoe UI',Arial,sans-serif;margin:0;background:#f1f5f9;color:#1e293b;}
+.page{max-width:680px;margin:40px auto;background:#fff;border-radius:16px;overflow:hidden;box-shadow:0 8px 32px rgba(0,0,0,0.1);}
+.hdr{background:linear-gradient(135deg,#080b14,#1e3a5f);color:#fff;padding:30px 36px;}
+.hdr-row{display:flex;align-items:center;justify-content:space-between;}
+.brand{font-size:20px;font-weight:800;}.brand small{display:block;font-size:10px;opacity:.5;letter-spacing:1px;text-transform:uppercase;margin-top:2px;}
+.vbadge{padding:8px 16px;border-radius:999px;font-size:11px;font-weight:800;letter-spacing:1px;text-transform:uppercase;}
+.vbadge.safe{background:rgba(16,185,129,.2);color:#34d399;border:1px solid rgba(16,185,129,.3);}
+.vbadge.unsafe{background:rgba(239,68,68,.2);color:#fca5a5;border:1px solid rgba(239,68,68,.3);}
+.body{padding:32px 36px;}
+h2{font-size:12px;text-transform:uppercase;letter-spacing:1px;color:#64748b;margin-bottom:14px;font-weight:700;}
+table{width:100%;border-collapse:collapse;margin-bottom:24px;}
+td{padding:9px 0;border-bottom:1px solid #f1f5f9;font-size:13px;vertical-align:top;}
+td:first-child{color:#64748b;font-weight:600;width:40%;}
+.scores{display:grid;grid-template-columns:repeat(4,1fr);gap:10px;margin-bottom:24px;}
+.sc{background:#f8fafc;border:1px solid #e2e8f0;border-radius:10px;padding:14px 8px;text-align:center;}
+.sc .v{font-size:26px;font-weight:800;margin-bottom:2px;}
+.sc .l{font-size:10px;text-transform:uppercase;letter-spacing:.5px;color:#94a3b8;}
+.sc.d .v{color:#ef4444;}.sc.w .v{color:#f59e0b;}.sc.g .v{color:#10b981;}.sc.b .v{color:#3b82f6;}
+.box{border-radius:10px;padding:14px 18px;margin-bottom:20px;font-size:13px;line-height:1.6;}
+.box.safe{background:#f0fdf4;border:1px solid #bbf7d0;color:#166534;}
+.box.unsafe{background:#fef2f2;border:1px solid #fecaca;color:#991b1b;}
+.footer{background:#f8fafc;border-top:1px solid #e2e8f0;padding:16px 36px;display:flex;justify-content:space-between;font-size:11px;color:#94a3b8;}
+</style></head><body>
+<div class="page">
+<div class="hdr">
+  <div class="hdr-row">
+    <div class="brand">🛡️ ScamShield — GuardScan<small>File Security Report</small></div>
+    <div class="vbadge ${isSafe?'safe':'unsafe'}">${isSafe?'✅ CLEAN':'❌ THREAT'}</div>
+  </div>
+</div>
+<div class="body">
+  <h2>File Information</h2>
+  <table>
+    <tr><td>File Name</td><td>${_fsFile.name}</td></tr>
+    <tr><td>File Size</td><td>${fsFmtSize(_fsFile.size)}</td></tr>
+    <tr><td>File Type</td><td>${_fsFile.type || 'Unknown'}</td></tr>
+    <tr><td>Scan Date</td><td>${dateStr} IST</td></tr>
+    <tr><td>Scan Engine</td><td>VirusTotal (70+ AV engines)</td></tr>
+    <tr><td>Safety Score</td><td><strong>${r.score}%</strong></td></tr>
+  </table>
+  <h2>Engine Breakdown</h2>
+  <div class="scores">
+    <div class="sc d"><div class="v">${s.malicious||0}</div><div class="l">Malicious</div></div>
+    <div class="sc w"><div class="v">${s.suspicious||0}</div><div class="l">Suspicious</div></div>
+    <div class="sc g"><div class="v">${s.harmless||0}</div><div class="l">Harmless</div></div>
+    <div class="sc b"><div class="v">${s.undetected||0}</div><div class="l">Undetected</div></div>
+  </div>
+  <h2>Analysis</h2>
+  <div class="box ${isSafe?'safe':'unsafe'}"><strong>${isSafe?'✅ No threats found.':'⛔ Threat detected!'}</strong> ${r.explanation}</div>
+  <h2>Recommendation</h2>
+  <div class="box ${isSafe?'safe':'unsafe'}">${isSafe
+    ? '✅ This file appears safe. You may use it normally, but always keep your system updated.'
+    : '⛔ Do NOT open or execute this file. Delete it immediately and run a full system antivirus scan.'
+  }</div>
+  <p style="font-size:11px;color:#94a3b8;line-height:1.5;">* Generated by ScamShield GuardScan. Results from VirusTotal API. A clean result does not guarantee 100% safety.</p>
+</div>
+<div class="footer"><span>ScamShield — GuardScan AI</span><span>Report ID: ${Math.random().toString(36).substr(2,9).toUpperCase()}</span></div>
+</div></body></html>`;
+
+  const blob = new Blob([html], { type: 'text/html' });
+  const url = URL.createObjectURL(blob);
+  const a = document.createElement('a');
+  a.href = url;
+  a.download = `ScamShield_FileReport_${_fsFile.name.replace(/[^a-zA-Z0-9.]/g,'_')}_${Date.now()}.html`;
+  a.click();
+  URL.revokeObjectURL(url);
+  toast('📥 Report downloaded!', '#00e5b0');
+}
 </script>
 </body>
 </html>

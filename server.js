@@ -6,13 +6,38 @@ const fetch = (...args) => import("node-fetch").then(({ default: fetch }) => fet
 const cheerio = require("cheerio");
 const http = require("http");
 const https = require("https");
+const PDFDocument = require("pdfkit");
+const QuickChart = require("quickchart-js");
+const multer = require("multer");
+const FormData = require("form-data");
+const fs = require("fs");
+const axios = require("axios");
+
+// VirusTotal API Key — set via env var on Render, falls back to hardcoded key
+const VT_API_KEY = process.env.VT_API_KEY || "f33d710ead9145561ea5957e8fba7ac0556dad010bd8e369c410d9c9e924e5c1";
+
+// Ensure uploads temp folder exists
+if (!fs.existsSync("./uploads")) fs.mkdirSync("./uploads");
+const upload = multer({ dest: "uploads/" });
 
 const app = express();
 app.use(express.json());
 app.use(cors());
 
-// ✅ Serve static files
+// ✅ Serve static files including manifest and service worker
 app.use(express.static(path.join(__dirname)));
+
+// Serve manifest.json with correct content type
+app.get('/manifest.json', (req, res) => {
+  res.type('application/manifest+json');
+  res.sendFile(path.join(__dirname, 'manifest.json'));
+});
+
+// Serve service worker
+app.get('/sw.js', (req, res) => {
+  res.type('application/javascript');
+  res.sendFile(path.join(__dirname, 'sw.js'));
+});
 
 // ✅ MongoDB Connection
 mongoose.connect("mongodb+srv://nss:nss@nss.otjxidx.mongodb.net/?retryWrites=true&w=majority&appName=nss")
@@ -23,9 +48,36 @@ mongoose.connect("mongodb+srv://nss:nss@nss.otjxidx.mongodb.net/?retryWrites=tru
 const userSchema = new mongoose.Schema({
   name: String,
   email: { type: String, unique: true },
-  password: String
+  password: String,
+  language: { type: String, default: 'en' }
 });
 const User = mongoose.model("User", userSchema);
+
+// ✅ History Schema for detailed scan results
+const historySchema = new mongoose.Schema({
+  email: String,
+  url: String,
+  type: String, // 'url_scan', 'message_analysis', 'ssl_check', etc
+  results: mongoose.Schema.Types.Mixed,
+  timestamp: { type: Date, default: Date.now },
+  verdict: String,
+  score: Number
+});
+const History = mongoose.model("History", historySchema);
+
+app.use((req, res, next) => {
+  res.setHeader(
+    "Content-Security-Policy",
+    "default-src 'self'; " +
+    "style-src 'self' 'unsafe-inline' https://cdn.tailwindcss.com https://fonts.googleapis.com https://cdn.jsdelivr.net https://cdnjs.cloudflare.com; " +
+    "font-src 'self' https://fonts.gstatic.com https://cdnjs.cloudflare.com; " +
+    "script-src 'self' 'unsafe-inline' https://cdn.tailwindcss.com https://cdn.jsdelivr.net https://cdnjs.cloudflare.com; " +
+    "connect-src 'self' https://api.openrouter.ai https://openrouter.ai https://api.ssllabs.com https://api.cdnjs.com https://ossindex.sonatype.org https://www.virustotal.com https://api.virustotal.com; " +
+    "img-src 'self' data: https:; " +
+    "media-src 'self';"
+  );
+  next();
+});
 
 // ------------------- AUTH ROUTES -------------------
 app.post("/register", async (req, res) => {
@@ -33,9 +85,9 @@ app.post("/register", async (req, res) => {
   try {
     const exists = await User.findOne({ email });
     if (exists) return res.status(400).json({ message: "Email already registered" });
-    const user = new User({ name, email, password });
+    const user = new User({ name, email, password, language: 'en' });
     await user.save();
-    res.json({ message: "Registration successful" });
+    res.json({ message: "Registration successful", user });
   } catch (err) {
     console.error("Register error:", err);
     res.status(500).json({ message: "Error registering user" });
@@ -54,65 +106,91 @@ app.post("/login", async (req, res) => {
   }
 });
 
+app.post("/user/language", async (req, res) => {
+  try {
+    const { email, language } = req.body;
+    await User.updateOne({ email }, { language });
+    res.json({ message: "Language updated" });
+  } catch (err) {
+    res.status(500).json({ error: "Failed to update language" });
+  }
+});
+
 // ✅ Default routes
 app.get("/", (req, res) => res.sendFile(path.join(__dirname, "index.html")));
 app.get("/ayu.html", (req, res) => res.sendFile(path.join(__dirname, "ayu.html")));
 
-
 // ------------------- SECURITY SCANNER ROUTES -------------------
 
-// 1. SSL Labs
+// SSL Check with improved error handling
 app.get("/scan/ssl", async (req, res) => {
   let { url } = req.query;
   if (!url) return res.status(400).json({ error: "Missing ?url parameter" });
   url = url.replace(/^https?:\/\//, "").replace(/\/$/, "");
 
-  async function poll() {
-    const response = await fetch(`https://api.ssllabs.com/api/v3/analyze?host=${encodeURIComponent(url)}&all=done`);
-    const data = await response.json();
-    if (data.status !== "READY" && data.status !== "ERROR") {
-      await new Promise(r => setTimeout(r, 5000));
-      return poll();
+  async function poll(retries = 0) {
+    try {
+      const response = await fetch(`https://api.ssllabs.com/api/v3/analyze?host=${encodeURIComponent(url)}&all=done&ignoreMismatch=on`);
+      const data = await response.json();
+      
+      if (!data.status) {
+        throw new Error(data.errors?.[0]?.message || "API error");
+      }
+      
+      if (data.status !== "READY" && data.status !== "ERROR") {
+        if (retries < 10) {
+          await new Promise(r => setTimeout(r, 5000));
+          return poll(retries + 1);
+        }
+      }
+      return data;
+    } catch (err) {
+      console.error("SSL Poll error:", err);
+      throw err;
     }
-    return data;
   }
 
   try {
     const result = await poll();
     res.json(result);
-  } catch {
-    res.status(500).json({ error: "SSL Labs scan failed" });
+  } catch (err) {
+    res.status(500).json({ error: "SSL Labs scan failed: " + err.message, url });
   }
 });
 
-// 2. Security Headers
+// Headers scan with better feedback
 app.get("/scan/headers", async (req, res) => {
   let { url } = req.query;
   if (!url.startsWith("http")) url = "https://" + url;
   try {
-    const response = await fetch(url, { headers: { "User-Agent": "Mozilla/5.0" } });
+    const response = await fetch(url, { 
+      headers: { "User-Agent": "Mozilla/5.0" },
+      timeout: 10000
+    });
     const headers = {};
     response.headers.forEach((value, key) => { headers[key.toLowerCase()] = value; });
-    const importantHeaders = {
+    
+    const securityHeaders = {
       "content-security-policy": headers["content-security-policy"] || "❌ Missing",
       "strict-transport-security": headers["strict-transport-security"] || "❌ Missing",
       "x-frame-options": headers["x-frame-options"] || "❌ Missing",
       "x-content-type-options": headers["x-content-type-options"] || "❌ Missing",
       "referrer-policy": headers["referrer-policy"] || "❌ Missing",
-      "permissions-policy": headers["permissions-policy"] || "❌ Missing"
+      "permissions-policy": headers["permissions-policy"] || "⚠️ Missing"
     };
-    res.json(importantHeaders);
-  } catch {
-    res.status(500).json({ error: "Header fetch failed" });
+    
+    res.json({ headers: securityHeaders, allHeaders: headers });
+  } catch (err) {
+    res.status(500).json({ error: "Header fetch failed: " + err.message });
   }
 });
 
-// 3. Outdated JS Libraries
+// Library scan
 app.get("/scan/libs", async (req, res) => {
   let { url } = req.query;
   if (!url.startsWith("http")) url = "https://" + url;
   try {
-    const response = await fetch(url);
+    const response = await fetch(url, { timeout: 10000 });
     const body = await response.text();
     const $ = cheerio.load(body);
 
@@ -130,7 +208,7 @@ app.get("/scan/libs", async (req, res) => {
         let vulnerabilities = [];
 
         try {
-          const cdnRes = await fetch(`https://api.cdnjs.com/libraries/${libName}?fields=version`);
+          const cdnRes = await fetch(`https://api.cdnjs.com/libraries/${libName}?fields=version`, { timeout: 5000 });
           const cdnData = await cdnRes.json();
           if (cdnData.version) {
             latestVersion = cdnData.version;
@@ -142,7 +220,8 @@ app.get("/scan/libs", async (req, res) => {
           const ossRes = await fetch("https://ossindex.sonatype.org/api/v3/component-report", {
             method: "POST",
             headers: { "Content-Type": "application/vnd.ossindex.component-report-request+json" },
-            body: JSON.stringify({ coordinates: [`pkg:npm/${libName}@${libVersion}`] })
+            body: JSON.stringify({ coordinates: [`pkg:npm/${libName}@${libVersion}`] }),
+            timeout: 5000
           });
           const ossData = await ossRes.json();
           if (Array.isArray(ossData) && ossData.length > 0 && ossData[0].vulnerabilities) {
@@ -154,38 +233,66 @@ app.get("/scan/libs", async (req, res) => {
           }
         } catch {}
 
-        results.push({ library: libName, current: libVersion, latest: latestVersion, outdated, vulnerabilities });
+        results.push({ 
+          library: libName, 
+          current: libVersion, 
+          latest: latestVersion, 
+          outdated, 
+          vulnerabilities,
+          severity: vulnerabilities.length > 0 ? "HIGH" : outdated ? "MEDIUM" : "LOW"
+        });
       }
     }
-    res.json(results.length ? results : []);
-  } catch {
-    res.status(500).json({ error: "Library scan failed" });
+    res.json(results.length ? results : { message: "No libraries found" });
+  } catch (err) {
+    res.status(500).json({ error: "Library scan failed: " + err.message });
   }
 });
 
-// 4. XSS Heuristic
+// XSS scan
 app.get("/scan/xss", async (req, res) => {
   try {
-    const url = req.query.url;
-    const response = await fetch(url);
+    const { url } = req.query;
+    const response = await fetch(url, { timeout: 10000 });
     const html = await response.text();
     const findings = [];
-    if (/<script[^>]*>/.test(html)) findings.push("Inline <script> tags found");
-    if (/on\w+=/i.test(html)) findings.push("Event handlers detected");
-    if (/javascript:/i.test(html)) findings.push("JavaScript links found");
-    if (/{{.*}}/.test(html)) findings.push("Unescaped template variables detected");
-    res.json({ url, findings });
-  } catch {
-    res.status(500).json({ error: "Failed to scan for XSS" });
+    const severity = [];
+
+    if (/<script[^>]*>/.test(html)) {
+      findings.push("⚠️ Inline <script> tags found");
+      severity.push("medium");
+    }
+    if (/on\w+=/i.test(html)) {
+      findings.push("⚠️ Event handlers detected");
+      severity.push("high");
+    }
+    if (/javascript:/i.test(html)) {
+      findings.push("⚠️ JavaScript links found");
+      severity.push("high");
+    }
+    if (/{{.*}}/.test(html)) {
+      findings.push("⚠️ Unescaped template variables detected");
+      severity.push("medium");
+    }
+
+    res.json({ 
+      url, 
+      findings, 
+      verdict: findings.length > 2 ? "DANGER" : findings.length > 0 ? "WARNING" : "SAFE",
+      score: 100 - (findings.length * 25)
+    });
+  } catch (err) {
+    res.status(500).json({ error: "Failed to scan for XSS: " + err.message });
   }
 });
 
-// 5. Ports + Admin Panels
+// Port & Admin Panel scan
 app.get("/scan/ports", async (req, res) => {
   const url = new URL(req.query.url.startsWith("http") ? req.query.url : "http://" + req.query.url);
   const host = url.hostname;
   const ports = [80, 443, 8080, 8443, 3000, 5000];
   const open = [];
+  
   await Promise.all(
     ports.map(p =>
       new Promise(resolve => {
@@ -199,496 +306,471 @@ app.get("/scan/ports", async (req, res) => {
       })
     )
   );
+  
   const panels = ["/admin", "/login", "/phpmyadmin"];
   const panelHits = [];
   for (const path of panels) {
     try {
-      const r = await fetch(url.origin + path, { method: "HEAD" });
+      const r = await fetch(url.origin + path, { method: "HEAD", timeout: 5000 });
       if (r.status < 400) panelHits.push(url.origin + path);
     } catch {}
   }
-  res.json({ host, openPorts: open, adminPanels: panelHits });
+  
+  res.json({ 
+    host, 
+    openPorts: open, 
+    adminPanels: panelHits,
+    verdict: open.length > 3 ? "WARNING" : "SAFE"
+  });
 });
 
-// 6. CSRF Token Detection
+// CSRF scan
 app.get("/scan/csrf", async (req, res) => {
   try {
     const url = req.query.url;
-    const response = await fetch(url);
+    const response = await fetch(url, { timeout: 10000 });
     const html = await response.text();
     const $ = cheerio.load(html);
+    
     const forms = [];
+    let issues = 0;
+    
     $("form").each((i, el) => {
-      const inputs = $(el).find("input[type=hidden]");
-      let hasToken = false;
-      inputs.each((j, inp) => {
-        const name = $(inp).attr("name") || "";
-        if (/csrf|token|authenticity/i.test(name)) hasToken = true;
+      const tokens = $(el).find("input[name*='csrf'], input[name*='token'], input[name*='_token']").length;
+      const hasToken = tokens > 0;
+      forms.push({
+        action: $(el).attr("action"),
+        method: $(el).attr("method"),
+        hasToken
       });
-      forms.push({ action: $(el).attr("action"), hasToken });
+      if (!hasToken) issues++;
     });
-    res.json({ url, forms });
-  } catch {
-    res.status(500).json({ error: "Failed CSRF scan" });
+
+    res.json({ 
+      forms, 
+      vulnerability: issues > 0 ? "POSSIBLE CSRF VULNERABILITY" : "Protected",
+      score: 100 - (issues * 30)
+    });
+  } catch (err) {
+    res.status(500).json({ error: "Failed to scan for CSRF: " + err.message });
   }
 });
 
-// 7. Sensitive Data Exposure
-app.get("/scan/sensitive", async (req, res) => {
+// ------------------- PERFORMANCE ROUTES -------------------
+app.get("/perf/check", async (req, res) => {
   try {
-    const url = req.query.url;
-    const response = await fetch(url);
+    const { url } = req.query;
+    const response = await fetch(url, { timeout: 15000 });
     const html = await response.text();
-    const findings = [];
-    const regexes = {
-      apiKey: /(AIza[0-9A-Za-z-_]{35})/,
-      aws: /AKIA[0-9A-Z]{16}/,
-      email: /[A-Z0-9._%+-]+@[A-Z0-9.-]+\.[A-Z]{2,}/i,
-      secrets: /(password|secret|token)[\s:=].{4,}/i
+    const $ = cheerio.load(html);
+
+    const metrics = {
+      htmlSize: html.length,
+      scripts: $("script").length,
+      stylesheets: $("link[rel='stylesheet']").length,
+      images: $("img").length,
+      externalRequests: $("script[src], link[href], img[src]").length,
+      recommendedOptimizations: []
     };
-    for (const [name, regex] of Object.entries(regexes)) {
-      const match = html.match(regex);
-      if (match) findings.push(`${name}: ${match[0]}`);
-    }
-    res.json({ url, findings });
-  } catch {
-    res.status(500).json({ error: "Failed sensitive scan" });
-  }
-});
 
+    if (metrics.images > 10) metrics.recommendedOptimizations.push("Too many images - use lazy loading");
+    if (metrics.scripts > 15) metrics.recommendedOptimizations.push("Too many scripts - consider bundling");
+    if (metrics.htmlSize > 500000) metrics.recommendedOptimizations.push("HTML too large - optimize content");
 
-
-// ------------------- NEW: AI + SCORE ENGINE -------------------
-const PDFDocument = require("pdfkit");
-const fs = require("fs");
-
-const OPENROUTER_API_KEY = "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";
-
-// Helper: Calculate score and status
-function calculateScore(findings) {
-  if (!findings || findings.length === 0) return { score: 100, status: "Safe 🟢" };
-  const severity = findings.length * 10;
-  let score = Math.max(0, 100 - severity);
-  let status = score >= 80 ? "Safe 🟢" : score >= 50 ? "Warning 🟡" : "Critical 🔴";
-  return { score, status };
-}
-
-// Helper: Get AI suggestion (one-liner)
-async function getAISolution(issue) {
-  try {
-    const response = await fetch("https://openrouter.ai/api/v1/chat/completions", {
-      method: "POST",
-      headers: {
-        "Authorization": `Bearer ${OPENROUTER_API_KEY}`,
-        "Content-Type": "application/json"
-      },
-      body: JSON.stringify({
-        model: "openai/gpt-4o-mini",
-        messages: [{ role: "user", content: `Give a one-line fix for: ${issue}` }]
-      })
-    });
-    const data = await response.json();
-    return data.choices?.[0]?.message?.content || "No AI suggestion";
+    res.json(metrics);
   } catch (err) {
-    return "AI service unavailable";
+    res.status(500).json({ error: "Performance check failed" });
   }
-}
-
-// NEW ROUTE: AI fix per issue
-app.get("/ai-fix", async (req, res) => {
-  const { issue } = req.query;
-  if (!issue) return res.status(400).json({ error: "Missing ?issue" });
-  const fix = await getAISolution(issue);
-  res.json({ issue, fix });
 });
 
-
-// ------------------- NEW ROUTE: Unified Report -------------------
-const QuickChart = require('quickchart-js'); // Install: npm i quickchart-js
-app.post("/generate-report", async (req, res) => {
+// ------------------- SEO ROUTES -------------------
+app.get("/seo/metadata", async (req, res) => {
   try {
-    const { scanResults } = req.body;
-    res.setHeader("Content-Type", "application/pdf");
-    res.setHeader("Content-Disposition", "attachment; filename=SecurityReport.pdf");
+    const { url } = req.query;
+    const response = await fetch(url, { timeout: 10000 });
+    const html = await response.text();
+    const $ = cheerio.load(html);
 
-    const doc = new PDFDocument({ margin: 30 });
-    doc.pipe(res);
+    const metadata = {
+      title: $("title").text(),
+      description: $("meta[name='description']").attr("content"),
+      keywords: $("meta[name='keywords']").attr("content"),
+      ogTitle: $("meta[property='og:title']").attr("content"),
+      ogDescription: $("meta[property='og:description']").attr("content"),
+      hasH1: $("h1").length > 0,
+      headings: { h1: $("h1").length, h2: $("h2").length, h3: $("h3").length }
+    };
 
-    // === Header ===
-    doc.fontSize(26).fillColor("#4B0082").text("🔐 Security Audit Report", { align: "center" });
-    doc.moveDown(0.5);
-    doc.fontSize(12).fillColor("#444").text(`Generated on: ${new Date().toLocaleString()}`, { align: "center" });
-    doc.moveDown(2);
-
-    // === Compute scores ===
-    let totalScore = 0;
-    const sectionScores = [];
-    for (const [scanType, findings] of Object.entries(scanResults)) {
-      const severity = findings.length * 10;
-      const score = Math.max(0, 100 - severity);
-      sectionScores.push({ scanType, score });
-      totalScore += score;
-    }
-    const overallScore = Math.round(totalScore / sectionScores.length);
-
-    // === Summary ===
-    doc.fontSize(18).fillColor("#000").text("📌 Summary", { underline: true });
-    doc.moveDown();
-    doc.fontSize(14).fillColor(overallScore >= 80 ? "green" : overallScore >= 50 ? "orange" : "red")
-      .text(`Overall Security Score: ${overallScore}%`);
-    doc.moveDown(0.5);
-    doc.fontSize(12).fillColor("#000").text("Highlights:");
-    doc.moveDown(0.5);
-    if (overallScore < 50) {
-      doc.fillColor("red").text("⚠️ Critical issues detected. Immediate action required!");
-    } else if (overallScore < 80) {
-      doc.fillColor("orange").text("⚠️ Some vulnerabilities found. Fix recommended.");
-    } else {
-      doc.fillColor("green").text("✅ Good security posture. Few minor issues detected.");
-    }
-    doc.moveDown(2);
-
-    // === Add Chart ===
-    try {
-      const QuickChart = require('quickchart-js');
-      const qc = new QuickChart();
-      qc.setConfig({
-        type: 'bar',
-        data: {
-          labels: sectionScores.map(s => s.scanType.toUpperCase()),
-          datasets: [{
-            label: 'Security Score (%)',
-            data: sectionScores.map(s => s.score),
-            backgroundColor: sectionScores.map(s => s.score >= 80 ? 'green' : s.score >= 50 ? 'orange' : 'red')
-          }]
-        }
-      }).setWidth(500).setHeight(300).setBackgroundColor('white');
-
-      const chartImageBase64 = await qc.toDataUrl();
-      const chartBuffer = Buffer.from(chartImageBase64.split(",")[1], 'base64');
-      doc.image(chartBuffer, { align: "center", width: 400 });
-    } catch (chartErr) {
-      doc.fontSize(12).fillColor("red").text("⚠️ Unable to load chart. (Network issue)", { align: "center" });
-    }
-
-    doc.moveDown(2);
-
-    // === Detailed Sections ===
-    for (const [scanType, findings] of Object.entries(scanResults)) {
-      const severity = findings.length * 10;
-      const score = Math.max(0, 100 - severity);
-      const statusColor = score >= 80 ? "green" : score >= 50 ? "orange" : "red";
-
-      doc.fontSize(16).fillColor("#4B0082").text(`🔍 ${scanType.toUpperCase()}`);
-      doc.fontSize(12).fillColor(statusColor).text(`Score: ${score}%`);
-      doc.moveDown(0.5);
-
-      if (findings.length === 0) {
-        doc.fillColor("green").text("✅ No issues found.");
-      } else {
-        findings.forEach((issue, idx) => {
-          doc.fillColor("#000").text(`${idx + 1}. ${issue}`);
-        });
-      }
-      doc.moveDown(1);
-    }
-
-    doc.end();
+    res.json(metadata);
   } catch (err) {
-    console.error("Report generation error:", err);
-    if (!res.headersSent) {
-      res.status(500).json({ error: "Failed to generate report" });
-    }
+    res.status(500).json({ error: "Metadata extraction failed" });
   }
 });
 
-
-
-
-// ------------------- PERFORMANCE SCANNER ROUTES -------------------
-app.get("/perf/pageload", async (req, res) => {
-  const { url } = req.query;
-  if (!url) return res.status(400).json({ error: "Missing ?url" });
-
-  const start = Date.now();
-  try {
-    const response = await fetch(url);
-    await response.text();
-    const duration = Date.now() - start;
-    res.json({ url, loadTimeMs: duration });
-  } catch {
-    res.status(500).json({ error: "Page load test failed" });
-  }
-});
-
-app.get("/perf/server", async (req, res) => {
-  const { url } = req.query;
-  if (!url) return res.status(400).json({ error: "Missing ?url" });
-
-  const start = Date.now();
-  try {
-    const response = await fetch(url);
-    const firstByte = Date.now() - start;
-    res.json({ url, ttfbMs: firstByte, status: response.status });
-  } catch {
-    res.status(500).json({ error: "Server response test failed" });
-  }
-});
-
-app.get("/perf/images", async (req, res) => {
-  const { url } = req.query;
-  if (!url) return res.status(400).json({ error: "Missing ?url" });
-
-  try {
-    const response = await fetch(url);
-    const html = await response.text();
-    const $ = cheerio.load(html);
-
-    const images = [];
-    $("img").each((i, el) => {
-      const src = $(el).attr("src");
-      if (src) images.push(src);
-    });
-
-    const results = [];
-    for (let src of images.slice(0, 10)) { // limit 10 for speed
-      try {
-        const imgRes = await fetch(src.startsWith("http") ? src : new URL(src, url).href, { method: "HEAD" });
-        const size = imgRes.headers.get("content-length") || "unknown";
-        results.push({ src, size });
-      } catch {
-        results.push({ src, size: "unknown" });
-      }
-    }
-
-    res.json({ url, images: results });
-  } catch {
-    res.status(500).json({ error: "Image scan failed" });
-  }
-});
-
-app.get("/perf/js-css", async (req, res) => {
-  const { url } = req.query;
-  try {
-    const response = await fetch(url);
-    const html = await response.text();
-    const $ = cheerio.load(html);
-
-    const scripts = $("script[src]").map((i, el) => $(el).attr("src")).get();
-    const styles = $("link[rel=stylesheet]").map((i, el) => $(el).attr("href")).get();
-
-    res.json({ url, scripts, styles, blocking: scripts.length + styles.length });
-  } catch {
-    res.status(500).json({ error: "JS/CSS scan failed" });
-  }
-});
-
-app.get("/perf/resources", async (req, res) => {
-  const { url } = req.query;
-  try {
-    const response = await fetch(url);
-    const html = await response.text();
-    const $ = cheerio.load(html);
-
-    const resources = [];
-    $("script[src], link[href], img[src]").each((i, el) => {
-      const attr = $(el).attr("src") || $(el).attr("href");
-      if (attr) resources.push(attr);
-    });
-
-    const results = [];
-    for (let r of resources.slice(0, 10)) {
-      const target = r.startsWith("http") ? r : new URL(r, url).href;
-      const start = Date.now();
-      try {
-        await fetch(target, { method: "HEAD" });
-        results.push({ resource: target, loadMs: Date.now() - start });
-      } catch {
-        results.push({ resource: target, loadMs: "failed" });
-      }
-    }
-
-    res.json({ url, resources: results });
-  } catch {
-    res.status(500).json({ error: "Resource loading scan failed" });
-  }
-});
-
-// 1. Meta Tags
-app.get("/seo/meta", async (req, res) => {
-  try {
-    let { url } = req.query;
-    if (!url.startsWith("http")) url = "https://" + url;
-    const response = await fetch(url);
-    const html = await response.text();
-    const $ = cheerio.load(html);
-    let issues = [];
-    if (!$("title").text()) issues.push("Missing <title> tag");
-    if (!$("meta[name=description]").attr("content")) issues.push("Missing meta description");
-    res.json({ issues });
-  } catch {
-    res.status(500).json({ error: "Meta analysis failed" });
-  }
-});
-
-// 2. Keyword Density
-app.get("/seo/keywords", async (req, res) => {
-  try {
-    let { url } = req.query;
-    if (!url.startsWith("http")) url = "https://" + url;
-    const response = await fetch(url);
-    const html = await response.text();
-    const text = cheerio.load(html)("body").text().toLowerCase();
-    let words = text.split(/\s+/);
-    let freq = {};
-    words.forEach(w => { if (w.length > 3) freq[w] = (freq[w] || 0) + 1; });
-    let top = Object.entries(freq).sort((a, b) => b[1] - a[1]).slice(0, 10);
-    res.json({ keywords: top, issues: [] });
-  } catch {
-    res.status(500).json({ error: "Keyword density failed" });
-  }
-});
-
-// 3. Heading Structure
-app.get("/seo/headings", async (req, res) => {
-  try {
-    let { url } = req.query;
-    if (!url.startsWith("http")) url = "https://" + url;
-    const response = await fetch(url);
-    const html = await response.text();
-    const $ = cheerio.load(html);
-    let h1 = $("h1").length, h2 = $("h2").length;
-    let issues = [];
-    if (h1 !== 1) issues.push(`Page has ${h1} H1 tags (should be exactly 1)`);
-    if (h2 < 1) issues.push("No H2 tags found");
-    res.json({ issues });
-  } catch {
-    res.status(500).json({ error: "Heading analysis failed" });
-  }
-});
-
-// 4. URL Structure
-app.get("/seo/url", async (req, res) => {
-  try {
-    let { url } = req.query;
-    const issues = [];
-    if (url.length > 75) issues.push("URL too long");
-    if (url.includes("?")) issues.push("Dynamic parameters in URL");
-    res.json({ issues });
-  } catch {
-    res.status(500).json({ error: "URL structure failed" });
-  }
-});
-
-// 5. Mobile Friendliness (viewport check)
-app.get("/seo/mobile", async (req, res) => {
-  try {
-    let { url } = req.query;
-    if (!url.startsWith("http")) url = "https://" + url;
-    const response = await fetch(url);
-    const html = await response.text();
-    const $ = cheerio.load(html);
-    let viewport = $("meta[name=viewport]").attr("content");
-    let issues = [];
-    if (!viewport) issues.push("Missing viewport meta tag");
-    res.json({ issues });
-  } catch {
-    res.status(500).json({ error: "Mobile friendliness failed" });
-  }
-});
-
-// 6. Broken Links
 app.get("/seo/broken", async (req, res) => {
   try {
     let { url } = req.query;
     if (!url.startsWith("http")) url = "https://" + url;
-    const response = await fetch(url);
+    const response = await fetch(url, { timeout: 10000 });
     const html = await response.text();
     const $ = cheerio.load(html);
+    
     let links = $("a[href]").map((i, el) => $(el).attr("href")).get();
     let issues = [];
-    for (let link of links.slice(0, 10)) { // limit 10
+    
+    for (let link of links.slice(0, 20)) {
       try {
-        const r = await fetch(link.startsWith("http") ? link : new URL(link, url).href, { method: "HEAD" });
-        if (r.status >= 400) issues.push(`Broken link: ${link}`);
-      } catch {
+        const r = await fetch(link.startsWith("http") ? link : new URL(link, url).href, { method: "HEAD", timeout: 5000 });
+        if (r.status >= 400) issues.push(`Broken link: ${link} (${r.status})`);
+      } catch (e) {
         issues.push(`Invalid link: ${link}`);
       }
     }
-    res.json({ issues });
-  } catch {
+    
+    res.json({ issues, totalChecked: links.length });
+  } catch (err) {
     res.status(500).json({ error: "Broken link check failed" });
   }
 });
 
-// 7. Image Optimization
+// Image optimization check
 app.get("/seo/images", async (req, res) => {
   try {
     let { url } = req.query;
     if (!url.startsWith("http")) url = "https://" + url;
-    const response = await fetch(url);
+    const response = await fetch(url, { timeout: 10000 });
     const html = await response.text();
     const $ = cheerio.load(html);
+    
     let issues = [];
+    let totalImages = 0;
+    
     $("img").each((i, el) => {
-      if (!$(el).attr("alt")) issues.push("Image missing alt attribute");
+      totalImages++;
+      if (!$(el).attr("alt")) {
+        issues.push(`Image missing alt attribute`);
+      }
+      if (!$(el).attr("width") || !$(el).attr("height")) {
+        issues.push(`Image missing dimensions`);
+      }
     });
-    res.json({ issues });
-  } catch {
-    res.status(500).json({ error: "Image optimization failed" });
+    
+    res.json({ issues, totalImages, missingAlt: issues.length });
+  } catch (err) {
+    res.status(500).json({ error: "Image optimization check failed" });
   }
 });
 
-// 8. Sitemap & Robots.txt
 app.get("/seo/sitemap", async (req, res) => {
   try {
     let { url } = req.query;
     if (!url.startsWith("http")) url = "https://" + url;
     const base = new URL(url).origin;
     let issues = [];
+    
     try {
-      const sm = await fetch(base + "/sitemap.xml");
-      if (sm.status >= 400) issues.push("Missing sitemap.xml");
-    } catch { issues.push("Missing sitemap.xml"); }
+      const sm = await fetch(base + "/sitemap.xml", { timeout: 5000 });
+      if (sm.status >= 400) issues.push("❌ Missing sitemap.xml");
+    } catch { 
+      issues.push("❌ Missing sitemap.xml"); 
+    }
+    
     try {
-      const rb = await fetch(base + "/robots.txt");
-      if (rb.status >= 400) issues.push("Missing robots.txt");
-    } catch { issues.push("Missing robots.txt"); }
+      const rb = await fetch(base + "/robots.txt", { timeout: 5000 });
+      if (rb.status >= 400) issues.push("❌ Missing robots.txt");
+    } catch { 
+      issues.push("❌ Missing robots.txt"); 
+    }
+    
     res.json({ issues });
-  } catch {
+  } catch (err) {
     res.status(500).json({ error: "Sitemap/robots check failed" });
   }
 });
 
-// 9. Backlink Profile (stub, since needs external APIs)
-app.get("/seo/backlinks", async (req, res) => {
+// ------------------- HISTORY ROUTES -------------------
+app.post("/save-history", async (req, res) => {
   try {
-    // Normally you’d query Google Search Console / Ahrefs API etc.
-    res.json({ issues: ["Backlink data requires external SEO API integration"] });
-  } catch {
-    res.status(500).json({ error: "Backlink check failed" });
+    const { email, url, type, results, verdict, score } = req.body;
+    if (!email) return res.status(400).json({ error: "Missing email" });
+
+    const entry = new History({
+      email,
+      url,
+      type: type || 'general_scan',
+      results,
+      verdict,
+      score
+    });
+
+    await entry.save();
+    res.json({ message: "History saved successfully" });
+  } catch (err) {
+    console.error("Error saving history:", err);
+    res.status(500).json({ error: "Failed to save history" });
   }
 });
 
-// 10. Crawl Errors (basic: fetch homepage status)
-app.get("/seo/crawl", async (req, res) => {
+app.get("/history", async (req, res) => {
   try {
-    let { url } = req.query;
-    if (!url.startsWith("http")) url = "https://" + url;
-    const response = await fetch(url);
-    let issues = [];
-    if (response.status >= 400) issues.push(`Homepage returned ${response.status}`);
-    res.json({ issues });
-  } catch {
-    res.status(500).json({ error: "Crawl error check failed" });
+    const { email } = req.query;
+    if (!email) return res.status(400).json({ error: "Missing email" });
+
+    const history = await History.find({ email }).sort({ timestamp: -1 }).limit(50);
+    res.json(history);
+  } catch (err) {
+    console.error("Error fetching history:", err);
+    res.status(500).json({ error: "Failed to fetch history" });
   }
 });
 
+app.delete("/history/:id", async (req, res) => {
+  try {
+    await History.findByIdAndDelete(req.params.id);
+    res.json({ message: "History deleted" });
+  } catch (err) {
+    res.status(500).json({ error: "Failed to delete history" });
+  }
+});
 
-// Import history routes
-require("./script")(app);
+// =================== SCAM SHIELD ROUTES ===================
 
+const scamReportSchema = new mongoose.Schema({
+  type: String,
+  identifier: String,
+  desc: String,
+  email: String,
+  timestamp: { type: Date, default: Date.now }
+});
+const ScamReport = mongoose.model("ScamReport", scamReportSchema);
+
+const fakeUrlSchema = new mongoose.Schema({
+  url: String,
+  issues: Number,
+  timestamp: { type: Date, default: Date.now }
+});
+const FakeUrl = mongoose.model("FakeUrl", fakeUrlSchema);
+
+// OpenRouter API Key
+const OPENROUTER_API_KEY = process.env.OPENROUTER_API_KEY || "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";
+
+async function callOpenRouter(systemPrompt, userPrompt, maxTokens = 400) {
+  try {
+    const response = await fetch("https://openrouter.ai/api/v1/chat/completions", {
+      method: "POST",
+      headers: {
+        "Authorization": `Bearer ${OPENROUTER_API_KEY}`,
+        "Content-Type": "application/json",
+        "HTTP-Referer": "https://scamshield.app",
+        "X-Title": "ScamShield"
+      },
+      body: JSON.stringify({
+        model: "openai/gpt-4o-mini",
+        messages: [
+          { role: "system", content: systemPrompt },
+          { role: "user", content: userPrompt }
+        ],
+        max_tokens: maxTokens
+      })
+    });
+    
+    const data = await response.json();
+    if (!response.ok) {
+      console.error("OpenRouter error:", data);
+      return null;
+    }
+    
+    return data.choices?.[0]?.message?.content || null;
+  } catch (err) {
+    console.error("API call error:", err);
+    return null;
+  }
+}
+
+// Message Analysis
+app.post("/analyze/message", async (req, res) => {
+  const { message } = req.body;
+  if (!message) return res.status(400).json({ error: "Missing message" });
+  
+  try {
+    const systemPrompt = `You are an expert scam detection AI trained on Indian cyber fraud patterns.
+Analyze the given message and respond ONLY with valid JSON (no markdown, no backticks):
+{
+  "verdict": "SCAM DETECTED" | "SUSPICIOUS" | "LIKELY SAFE",
+  "score": <0-100 integer>,
+  "summary": "<1-2 sentence verdict>",
+  "flags": [
+    { "type": "bad" | "warn" | "good" | "info", "text": "<specific finding>" }
+  ]
+}
+Focus on: OTP requests (80+), fake bank calls, TRAI threats, urgency language, prize fraud, advance fees, courier scams, UPI phishing.`;
+    
+    const raw = await callOpenRouter(systemPrompt, `Analyze this message:\n\n"${message}"`, 500);
+    
+    if (!raw) {
+      return res.status(500).json({ 
+        error: "AI analysis unavailable",
+        verdict: "UNABLE_TO_ANALYZE",
+        score: 50,
+        summary: "Please check the message manually"
+      });
+    }
+    
+    const clean = raw.replace(/```json|```/gi, "").trim();
+    const parsed = JSON.parse(clean);
+    res.json(parsed);
+  } catch (err) {
+    console.error("Analysis error:", err);
+    res.status(500).json({ 
+      error: "Analysis failed",
+      verdict: "SUSPICIOUS",
+      score: 60,
+      summary: "Unable to analyze - treat with caution"
+    });
+  }
+});
+
+// AI Chat
+app.post("/ai-chat", async (req, res) => {
+  const { prompt, username } = req.body;
+  if (!prompt) return res.status(400).json({ error: "Missing prompt" });
+  
+  try {
+    const systemPrompt = `You are ScamShield AI, an expert assistant helping users identify and avoid digital scams.
+Specialize in: phishing links, fake calls, UPI fraud, WhatsApp scams, impersonation attacks.
+Be concise, practical, and clear. User: ${username || "User"}.`;
+    
+    const reply = await callOpenRouter(systemPrompt, prompt, 300);
+    res.json({ reply: reply || "Unable to generate response. Try rephrasing your question." });
+  } catch (err) {
+    console.error("Chat error:", err);
+    res.status(500).json({ reply: "AI service unavailable. Try again later." });
+  }
+});
+
+// Scam Report
+app.post("/report/scam", async (req, res) => {
+  try {
+    const { type, identifier, desc, email } = req.body;
+    if (!identifier) return res.status(400).json({ error: "Missing identifier" });
+    
+    const report = new ScamReport({ type, identifier, desc, email });
+    await report.save();
+    res.json({ message: "Report submitted successfully" });
+  } catch (err) {
+    res.status(500).json({ error: "Failed to submit report" });
+  }
+});
+
+// Scam Feed
+app.get("/feed/scams", async (req, res) => {
+  try {
+    const reports = await ScamReport.find({}).sort({ timestamp: -1 }).limit(30);
+    res.json(reports);
+  } catch (err) {
+    res.status(500).json({ error: "Failed to fetch feed" });
+  }
+});
+
+// Fake URL Management
+app.post("/save-fake", async (req, res) => {
+  try {
+    const { url, issues } = req.body;
+    await FakeUrl.create({ url, issues });
+    res.json({ message: "Saved" });
+  } catch (err) {
+    res.status(500).json({ error: "Failed to save" });
+  }
+});
+
+app.get("/fake-urls", async (req, res) => {
+  try {
+    const urls = await FakeUrl.find({}).sort({ timestamp: -1 }).limit(50);
+    res.json(urls);
+  } catch (err) {
+    res.status(500).json({ error: "Failed to fetch fake urls" });
+  }
+});
+
+// =================== END SCAM SHIELD ROUTES ===================
+
+// =================== FILE SCANNER — VirusTotal ===================
+app.post("/scan", upload.single("document"), async (req, res) => {
+  if (!req.file) return res.status(400).json({ error: "No file uploaded" });
+
+  const filePath = req.file.path;
+  const cleanup = () => { try { fs.unlinkSync(filePath); } catch {} };
+
+  try {
+    console.log(`> GuardScan: processing "${req.file.originalname}" (${req.file.size} bytes)`);
+
+    // 1. Upload file to VirusTotal
+    const form = new FormData();
+    form.append("file", fs.createReadStream(filePath), { filename: req.file.originalname });
+
+    const uploadRes = await axios.post("https://www.virustotal.com/api/v3/files", form, {
+      headers: { ...form.getHeaders(), "x-apikey": VT_API_KEY },
+      maxContentLength: Infinity,
+      maxBodyLength: Infinity,
+      timeout: 60000
+    });
+
+    const analysisId = uploadRes.data.data.id;
+    console.log(`> Analysis ID: ${analysisId} — polling...`);
+
+    // 2. Poll every 3s, up to 8 attempts (~24s max)
+    let attempts = 0;
+    const result = await new Promise((resolve, reject) => {
+      const interval = setInterval(async () => {
+        attempts++;
+        try {
+          const report = await axios.get(
+            `https://www.virustotal.com/api/v3/analyses/${analysisId}`,
+            { headers: { "x-apikey": VT_API_KEY }, timeout: 15000 }
+          );
+          const status = report.data.data.attributes.status;
+          console.log(`> Poll #${attempts}: ${status}`);
+
+          if (status === "completed" || attempts >= 8) {
+            clearInterval(interval);
+            const stats = report.data.data.attributes.stats || {};
+            const mal  = stats.malicious   || 0;
+            const sus  = stats.suspicious  || 0;
+            const har  = stats.harmless    || 0;
+            const und  = stats.undetected  || 0;
+            const total = mal + sus + har + und;
+            const score = total > 0 ? Math.round(((har + und) / total) * 100) : 50;
+            resolve({
+              status: (mal > 0 || sus > 0) ? "unsafe" : "safe",
+              score,
+              stats,
+              explanation: `${mal} engine${mal !== 1 ? "s" : ""} flagged malicious, ${sus} suspicious, ${har} confirmed safe out of ${total} total.`
+            });
+          }
+        } catch (pollErr) {
+          clearInterval(interval);
+          reject(pollErr);
+        }
+      }, 3000);
+    });
+
+    cleanup();
+    console.log(`> Scan done — status: ${result.status}, score: ${result.score}%`);
+    res.json(result);
+
+  } catch (err) {
+    cleanup();
+    console.error("VirusTotal error:", err.response?.data || err.message);
+    res.status(500).json({
+      status: "error",
+      score: 0,
+      stats: {},
+      explanation: "VirusTotal API error. Check your API key or try again later."
+    });
+  }
+});
+// =================== END FILE SCANNER ===================
 
 // ✅ Start server
-const PORT = 3000;
-app.listen(PORT, () => console.log(`🚀 Server running at http://localhost:${PORT}`));
+const PORT = process.env.PORT || 3000;
+app.listen(PORT, () => console.log(`🚀 Server running on port ${PORT}`));
