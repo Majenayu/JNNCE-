@@ -1,10 +1,24 @@
 # Security Protocols
 
-A browser-based security audit and protocol presentation prototype.
+## Overview
 
-## Stack
+Security Protocols is a small browser/PWA prototype with a Node.js server and a security-audit themed interface. The repository contains a web entry page, client scripts, icons, manifest metadata, and service-worker support.
 
-Node.js, Express, HTML, CSS, JavaScript, and PWA assets.
+## Architecture
+
+```mermaid
+flowchart LR
+  Browser[index.html] --> Server[server.js]
+  Browser --> Client[script.js]
+  Browser --> PWA[manifest.json and sw.js]
+```
+
+## Project structure
+
+- `server.js` — Node.js server entry point.
+- `index.html`, `ayu.html` — browser pages.
+- `script.js` — client-side behavior.
+- `manifest.json`, `sw.js`, `icon-*.png` — PWA assets.
 
 ## Run locally
 
@@ -13,8 +27,12 @@ npm install
 npm start
 ```
 
-Keep service credentials in environment variables; never commit secrets.
+Keep deployment credentials and private configuration in environment variables.
 
 ## Status
 
-Prototype project.
+Prototype interface; no automated test command or release process is declared.
+
+## License
+
+No license is currently declared.
